@@ -302,7 +302,7 @@ function Deploys({ bot, live }: { bot: Bot; live: ReturnType<typeof useBotStream
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
       <div className="space-y-5">
-        <Uploader bot={bot} onDone={() => qc.invalidateQueries({ queryKey: ['deploys', bot.id] })} />
+        <DeploySource bot={bot} last={deploys.data?.find((d) => d.source === 'git' || (d.source === 'rollback' && d.gitUrl))} onDone={() => qc.invalidateQueries({ queryKey: ['deploys', bot.id] })} />
         {live && (live.phase === 'fetching' || live.phase === 'installing' || live.lines.length > 0) && (
           <Card className="overflow-hidden">
             <CardHeader
@@ -333,7 +333,12 @@ function Deploys({ bot, live }: { bot: Bot; live: ReturnType<typeof useBotStream
                 <span className="font-display text-[17px] font-bold text-faint-foreground tabular-nums">#{d.number}</span>
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-[14px] font-semibold">
-                    {d.source === 'rollback' ? 'Rollback' : d.source === 'api' ? 'API deploy' : 'Upload'}
+                    {d.source === 'rollback' ? 'Rollback' : d.source === 'api' ? 'API deploy' : d.source === 'git' ? 'Git' : 'Upload'}
+                    {d.gitRef && (
+                      <span className="font-mono text-[12.5px] font-medium text-muted-foreground">
+                        {d.gitRef} @ {d.gitCommit?.slice(0, 7)}
+                      </span>
+                    )}
                     {d.current && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11.5px] font-semibold text-brand-text">current</span>}
                   </p>
                   <p className="text-[12.5px] text-muted-foreground">
@@ -359,6 +364,70 @@ function Deploys({ bot, live }: { bot: Bot; live: ReturnType<typeof useBotStream
       </Card>
       <DeployLog botId={bot.id} deployId={viewing} onClose={() => setViewing(null)} />
     </div>
+  )
+}
+
+function DeploySource({ bot, last, onDone }: { bot: Bot; last?: Deploy; onDone: () => void }) {
+  const [mode, setMode] = useState<'upload' | 'git'>(last ? 'git' : 'upload')
+  return (
+    <div className="space-y-3">
+      <Segmented
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'upload', label: 'Upload' },
+          { value: 'git', label: 'From git' },
+        ]}
+      />
+      {mode === 'upload' ? <Uploader bot={bot} onDone={onDone} /> : <GitForm bot={bot} last={last} onDone={onDone} />}
+    </div>
+  )
+}
+
+function GitForm({ bot, last, onDone }: { bot: Bot; last?: Deploy; onDone: () => void }) {
+  const [url, setUrl] = useState(last?.gitUrl ?? '')
+  const [ref, setRef] = useState(last?.gitRef ?? 'main')
+  const [token, setToken] = useState('')
+  const deploy = useMutation({
+    mutationFn: () => api.gitDeploy(bot.id, { gitUrl: url, gitRef: ref, token: token || undefined }),
+    onSuccess: (d) => {
+      toast.success(`Cloned ${d.gitRef} @ ${d.gitCommit?.slice(0, 7)}. Installing on the server…`)
+      setToken('')
+      onDone()
+    },
+  })
+  return (
+    <Card className="px-6 py-5">
+      <form
+        className="space-y-4"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault()
+          deploy.mutate()
+        }}
+      >
+        <Field label="Repository" htmlFor="g-url">
+          <Input id="g-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/you/your-bot.git" className="font-mono text-[14px]" />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Branch or tag" htmlFor="g-ref">
+            <Input id="g-ref" value={ref} onChange={(e) => setRef(e.target.value)} className="font-mono text-[14px]" />
+          </Field>
+          <Field label="Access token" htmlFor="g-token" hint="Only for private repos. Used once, never stored.">
+            <Input id="g-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="optional" />
+          </Field>
+        </div>
+        <FormError error={deploy.error} />
+        <Button type="submit" variant="brand" disabled={deploy.isPending || !url}>
+          {deploy.isPending ? (
+            <>
+              <Loader2 className="animate-spin" /> Cloning…
+            </>
+          ) : (
+            'Deploy from git'
+          )}
+        </Button>
+      </form>
+    </Card>
   )
 }
 

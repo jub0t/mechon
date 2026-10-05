@@ -185,6 +185,9 @@ export type Deploy = {
   createdAt: string
   finishedAt: string | null
   current: boolean
+  gitUrl?: string
+  gitRef?: string
+  gitCommit?: string
   log?: string
 }
 
@@ -260,5 +263,6 @@ export const api = {
     fd.append('file', file)
     return request<Deploy>('POST', `/bots/${id}/deploys`, fd)
   },
+  gitDeploy: (id: string, b: { gitUrl: string; gitRef: string; token?: string }) => post<Deploy>(`/bots/${id}/deploys`, b),
   rollback: (id: string, deployId: string) => post<Deploy>(`/bots/${id}/deploys/${deployId}/rollback`),
 }

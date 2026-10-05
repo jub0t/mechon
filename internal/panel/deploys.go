@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,9 @@ type deployJSON struct {
 	Bytes         int64           `json:"bytes"`
 	RollbackOf    *uuid.UUID      `json:"rollbackOf"`
 	CreatedByName *string         `json:"createdBy"`
+	GitURL        string          `json:"gitUrl,omitempty"`
+	GitRef        string          `json:"gitRef,omitempty"`
+	GitCommit     string          `json:"gitCommit,omitempty"`
 	CreatedAt     time.Time       `json:"createdAt"`
 	FinishedAt    *time.Time      `json:"finishedAt"`
 	Current       bool            `json:"current"`
@@ -34,6 +38,7 @@ type deployJSON struct {
 func toDeployJSON(d db.Deploy, by *string, current *uuid.UUID) deployJSON {
 	return deployJSON{ID: d.ID, Number: d.Number, Source: d.Source, Status: d.Status, Error: d.Error, SHA256: d.ArtifactSha256,
 		Bytes: d.ArtifactBytes, RollbackOf: d.RollbackOf, CreatedByName: by, CreatedAt: d.CreatedAt, FinishedAt: d.FinishedAt,
+		GitURL: d.GitUrl, GitRef: d.GitRef, GitCommit: d.GitCommit,
 		Current: current != nil && *current == d.ID}
 }
 
@@ -51,6 +56,7 @@ func (s *Server) listDeploys(w http.ResponseWriter, r *http.Request) {
 	out := make([]deployJSON, 0, len(rows))
 	for _, d := range rows {
 		out = append(out, toDeployJSON(db.Deploy{ID: d.ID, BotID: d.BotID, Number: d.Number, Source: d.Source, RollbackOf: d.RollbackOf,
+			GitUrl: d.GitUrl, GitRef: d.GitRef, GitCommit: d.GitCommit,
 			ArtifactSha256: d.ArtifactSha256, ArtifactBytes: d.ArtifactBytes, Status: d.Status, Error: d.Error,
 			CreatedAt: d.CreatedAt, FinishedAt: d.FinishedAt}, d.CreatedByName, row.Bot.CurrentDeployID))
 	}
@@ -78,8 +84,9 @@ func (s *Server) getDeploy(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, v)
 }
 
-// createDeploy takes a multipart upload (field "file": a .zip or .tar.gz of the bot's code).
-// Web UI, CLI and CI all use this; with an API key it is the "api" source.
+// createDeploy takes either a multipart upload (field "file": a .zip or .tar.gz of the bot's
+// code; the "api" source when an API key sends it) or a JSON body {"gitUrl", "gitRef", "token"}
+// to deploy a branch or tag from a git repository over https.
 func (s *Server) createDeploy(w http.ResponseWriter, r *http.Request) {
 	row, err := s.loadBot(r)
 	if err != nil {
@@ -87,6 +94,10 @@ func (s *Server) createDeploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := int64(row.Bot.DiskMb) << 20
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		s.createGitDeploy(w, r, row.Bot.ID, limit)
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, min(limit, maxUploadBytes)+(1<<20))
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -108,7 +119,7 @@ func (s *Server) createDeploy(w http.ResponseWriter, r *http.Request) {
 	if currentPrincipal(r).isAPIKey() {
 		source = db.DeploySourceApi
 	}
-	d, err := s.startDeploy(r.Context(), row.Bot.ID, source, art, nil)
+	d, err := s.startDeploy(r.Context(), row.Bot.ID, source, art, nil, gitSource{})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -137,7 +148,8 @@ func (s *Server) rollbackDeploy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, errConflict("The code for that deploy is no longer stored on the panel."))
 		return
 	}
-	d, err := s.startDeploy(r.Context(), row.Bot.ID, db.DeploySourceRollback, artifact{SHA256: old.ArtifactSha256, Bytes: old.ArtifactBytes}, &old.ID)
+	d, err := s.startDeploy(r.Context(), row.Bot.ID, db.DeploySourceRollback, artifact{SHA256: old.ArtifactSha256, Bytes: old.ArtifactBytes}, &old.ID,
+		gitSource{URL: old.GitUrl, Ref: old.GitRef, Commit: old.GitCommit})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -145,7 +157,40 @@ func (s *Server) rollbackDeploy(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, d)
 }
 
-func (s *Server) startDeploy(ctx context.Context, botID uuid.UUID, source db.DeploySource, art artifact, rollbackOf *uuid.UUID) (deployJSON, error) {
+func (s *Server) createGitDeploy(w http.ResponseWriter, r *http.Request, botID uuid.UUID, limit int64) {
+	var in struct {
+		GitURL string `json:"gitUrl"`
+		GitRef string `json:"gitRef"`
+		Token  string `json:"token"` // for private repositories; used once, never stored
+	}
+	if err := decode(w, r, &in); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	repo, err := parseGitURL(in.GitURL)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	in.GitRef = strings.TrimSpace(in.GitRef)
+	if in.GitRef != "" && !validRef(in.GitRef) {
+		writeError(w, r, errBadRequest("That is not a valid branch or tag name."))
+		return
+	}
+	art, src, err := cloneToArtifact(r.Context(), s.artifactDir, repo, in.GitRef, strings.TrimSpace(in.Token), min(limit, maxUploadBytes))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	d, err := s.startDeploy(r.Context(), botID, db.DeploySourceGit, art, nil, src)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, d)
+}
+
+func (s *Server) startDeploy(ctx context.Context, botID uuid.UUID, source db.DeploySource, art artifact, rollbackOf *uuid.UUID, git gitSource) (deployJSON, error) {
 	by := currentPrincipalFromCtx(ctx)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -154,6 +199,7 @@ func (s *Server) startDeploy(ctx context.Context, botID uuid.UUID, source db.Dep
 	defer tx.Rollback(context.WithoutCancel(ctx))
 	q := s.q.WithTx(tx)
 	d, err := q.CreateDeploy(ctx, db.CreateDeployParams{BotID: botID, Source: source, RollbackOf: rollbackOf,
+		GitUrl: git.URL, GitRef: git.Ref, GitCommit: git.Commit,
 		ArtifactSha256: art.SHA256, ArtifactBytes: art.Bytes, CreatedBy: by})
 	if err != nil {
 		return deployJSON{}, err
