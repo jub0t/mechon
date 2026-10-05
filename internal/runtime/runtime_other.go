@@ -30,5 +30,14 @@ func (*Docker) Logs(context.Context, string, int, time.Time, bool) (<-chan LogEn
 }
 func (*Docker) Stats(context.Context) ([]proto.BotStats, error) { return nil, errNotLinux }
 func (*Docker) Events(context.Context) (<-chan Event, error)    { return nil, errNotLinux }
-func (*Docker) HostInfo(context.Context) (HostInfo, error)      { return HostInfo{}, errNotLinux }
-func (*HostSampler) Sample() proto.NodeStats                    { return proto.NodeStats{} }
+func (*Docker) ListFiles(context.Context, string, string) (proto.FilesListing, error) {
+	return proto.FilesListing{}, errNotLinux
+}
+func (*Docker) ReadFile(context.Context, string, string) (proto.FileContent, error) {
+	return proto.FileContent{}, errNotLinux
+}
+func (*Docker) WriteFile(context.Context, string, string, []byte, int) error { return errNotLinux }
+func (*Docker) DeleteFile(context.Context, string, string) error             { return errNotLinux }
+func (*Docker) MakeDir(context.Context, string, string, int) error           { return errNotLinux }
+func (*Docker) HostInfo(context.Context) (HostInfo, error)                   { return HostInfo{}, errNotLinux }
+func (*HostSampler) Sample() proto.NodeStats                                 { return proto.NodeStats{} }

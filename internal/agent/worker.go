@@ -34,6 +34,7 @@ type worker struct {
 	opDeploy   string             // DeployID of the in-flight apply
 	state      proto.BotState
 	hasState   bool
+	uid        int // UID of the newest spec received (0 before the first); for the file manager
 	kick       chan struct{}
 
 	// Owned by run.
@@ -61,6 +62,7 @@ func (w *worker) apply(spec proto.BotSpec) {
 	w.mu.Lock()
 	w.pendApply = &spec
 	w.pendRemove = false
+	w.uid = spec.UID
 	// A new deploy supersedes one still being fetched or installed.
 	if w.cancelOp != nil && w.opDeploy != "" && spec.DeployID != w.opDeploy {
 		w.cancelOp()
@@ -74,6 +76,7 @@ func (w *worker) remove() {
 	w.pendApply = nil
 	w.pendRestrt = false
 	w.pendRemove = true
+	w.uid = 0
 	if w.cancelOp != nil {
 		w.cancelOp()
 	}
@@ -109,6 +112,13 @@ func (w *worker) hasWork() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.pendApply != nil || w.pendRemove || w.pendRestrt || len(w.pendExits) > 0
+}
+
+// specUID returns the bot's UID from its newest spec, or 0 if no spec has been received.
+func (w *worker) specUID() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.uid
 }
 
 // current returns the last reported state, if any.

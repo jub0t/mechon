@@ -22,7 +22,7 @@ import (
 )
 
 // Version is the agent build version, set with -ldflags "-X .../agent.Version=…".
-var Version = "0.1.0-dev"
+var Version = "0.2.0-dev"
 
 // Runtime is what the agent needs from the container runtime.
 type Runtime interface {
@@ -400,9 +400,64 @@ func (a *Agent) handle(env proto.Envelope) {
 			return
 		}
 		go a.logs.subscribe(env.ID, sub)
+	case proto.TypeFilesList, proto.TypeFilesRead, proto.TypeFilesDelete, proto.TypeFilesMkdir:
+		var fp proto.FilesPath
+		if err := json.Unmarshal(env.Data, &fp); err != nil || !validID(fp.BotID) {
+			a.reply(env.ID, fmt.Errorf("bad %s", env.Type), nil)
+			return
+		}
+		go a.files(env.ID, env.Type, fp.BotID, fp.Path, nil)
+	case proto.TypeFilesWrite:
+		var fw proto.FileWrite
+		if err := json.Unmarshal(env.Data, &fw); err != nil || !validID(fw.BotID) {
+			a.reply(env.ID, fmt.Errorf("bad %s", env.Type), nil)
+			return
+		}
+		go a.files(env.ID, env.Type, fw.BotID, fw.Path, fw.Content)
 	default:
 		a.reply(env.ID, fmt.Errorf("unknown request type %q", env.Type), nil)
 	}
+}
+
+const filesTimeout = 30 * time.Second
+
+// files serves one file-manager request. It runs on its own goroutine (not the bot's worker,
+// which may be busy with a long deploy); the runtime confines every path to the bot's volume.
+// The bot must be known from a spec, whose UID owns whatever gets created.
+func (a *Agent) files(id, typ, botID, path string, content []byte) {
+	a.mu.Lock()
+	w := a.workers[botID]
+	a.mu.Unlock()
+	uid := 0
+	if w != nil {
+		uid = w.specUID()
+	}
+	if uid == 0 {
+		a.reply(id, fmt.Errorf("unknown bot %q", botID), nil)
+		return
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, filesTimeout)
+	defer cancel()
+	var (
+		data any
+		err  error
+	)
+	switch typ {
+	case proto.TypeFilesList:
+		data, err = a.rt.ListFiles(ctx, botID, path)
+	case proto.TypeFilesRead:
+		data, err = a.rt.ReadFile(ctx, botID, path)
+	case proto.TypeFilesWrite:
+		err = a.rt.WriteFile(ctx, botID, path, content, uid)
+	case proto.TypeFilesDelete:
+		err = a.rt.DeleteFile(ctx, botID, path)
+	case proto.TypeFilesMkdir:
+		err = a.rt.MakeDir(ctx, botID, path, uid)
+	}
+	if err != nil {
+		data = nil
+	}
+	a.reply(id, err, data)
 }
 
 func validID(id string) bool { return runtime.ValidBotID(id) }

@@ -34,6 +34,19 @@ type Runtime interface {
 	// Events reports container exits. Exits caused by the runtime itself (stop, recreate,
 	// remove) are not reported. Must be called once.
 	Events(ctx context.Context) (<-chan Event, error)
+
+	// File manager. Paths follow proto's rules: "app/..." or "data/..." inside the bot's
+	// volume ("" lists the two roots for ListFiles). Every operation is confined to the volume
+	// and never follows symlinks. A bot without a volume yields ErrNoFiles, a malformed path
+	// ErrInvalidPath. uid is the bot's UID (and GID), the owner of what gets created.
+	ListFiles(ctx context.Context, botID, path string) (proto.FilesListing, error)
+	ReadFile(ctx context.Context, botID, path string) (proto.FileContent, error)
+	// WriteFile atomically replaces or creates a regular file; its parent must exist.
+	WriteFile(ctx context.Context, botID, path string, content []byte, uid int) error
+	// DeleteFile removes a file, a symlink (not its target) or a directory recursively.
+	DeleteFile(ctx context.Context, botID, path string) error
+	// MakeDir creates one directory; its parent must exist.
+	MakeDir(ctx context.Context, botID, path string, uid int) error
 }
 
 // Instance is what the runtime currently has for a bot.

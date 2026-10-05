@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -125,6 +126,7 @@ type fakeRT struct {
 	applies  int
 	restarts int
 	removed  []string
+	writes   []string
 	events   chan runtime.Event
 }
 
@@ -181,6 +183,25 @@ func (f *fakeRT) Stats(context.Context) ([]proto.BotStats, error) {
 	return []proto.BotStats{{BotID: "ag-1", MemoryBytes: 42}}, nil
 }
 func (f *fakeRT) Events(context.Context) (<-chan runtime.Event, error) { return f.events, nil }
+func (f *fakeRT) ListFiles(_ context.Context, id, path string) (proto.FilesListing, error) {
+	if path != "app" {
+		return proto.FilesListing{}, runtime.ErrInvalidPath
+	}
+	return proto.FilesListing{Path: path, Entries: []proto.FileEntry{{Name: "src", Dir: true, Mode: 0o755}, {Name: "index.js", Size: 3, Mode: 0o644}}}, nil
+}
+func (f *fakeRT) ReadFile(_ context.Context, id, path string) (proto.FileContent, error) {
+	return proto.FileContent{Path: path, Size: 3, Content: []byte("hi\n")}, nil
+}
+func (f *fakeRT) WriteFile(_ context.Context, id, path string, content []byte, uid int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.writes = append(f.writes, fmt.Sprintf("%s %s %q %d", id, path, content, uid))
+	return nil
+}
+func (f *fakeRT) DeleteFile(context.Context, string, string) error { return nil }
+func (f *fakeRT) MakeDir(context.Context, string, string, int) error {
+	return nil
+}
 func (f *fakeRT) HostInfo(context.Context) (runtime.HostInfo, error) {
 	return runtime.HostInfo{Hostname: "fake", CPUs: 2, MemoryBytes: 1 << 30, CgroupV2: true}, nil
 }
@@ -293,6 +314,62 @@ func TestAgentFakeRuntime(t *testing.T) {
 		t.Fatal("agent did not reconnect")
 	}
 	panel.expect("hello again", 5*time.Second, func(e proto.Envelope) bool { return e.Type == proto.TypeHello })
+}
+
+func TestAgentFiles(t *testing.T) {
+	panel := newFakePanel(t)
+	rt := newFakeRT()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	a := New(Config{PanelURL: panel.URL, Token: token, DataDir: t.TempDir(), Logger: quietLogger()})
+	go a.Run(ctx, rt)
+	conn := <-panel.conns
+	panel.expect("hello", 5*time.Second, func(e proto.Envelope) bool { return e.Type == proto.TypeHello })
+
+	// Unknown bot: no spec, no UID.
+	panel.send(conn, "f0", proto.TypeFilesList, proto.FilesPath{BotID: "fb-1", Path: "app"})
+	if env := panel.expect("unknown bot", 5*time.Second, reply("f0")); env.Type != proto.TypeError || !strings.Contains(string(env.Data), "unknown bot") {
+		t.Fatalf("unknown bot: %s %s", env.Type, env.Data)
+	}
+
+	spec := testSpec("fb-1")
+	panel.send(conn, "s1", proto.TypeSync, proto.Sync{Bots: []proto.BotSpec{spec}})
+	panel.expect("sync reply", 5*time.Second, reply("s1"))
+
+	panel.send(conn, "f1", proto.TypeFilesList, proto.FilesPath{BotID: "fb-1", Path: "app"})
+	env := panel.expect("files.list reply", 5*time.Second, reply("f1"))
+	var l proto.FilesListing
+	if err := json.Unmarshal(env.Data, &l); err != nil || env.Type != proto.TypeOK || l.Path != "app" || len(l.Entries) != 2 || l.Entries[0].Name != "src" || !l.Entries[0].Dir {
+		t.Fatalf("files.list: %s %s", env.Type, env.Data)
+	}
+
+	panel.send(conn, "f2", proto.TypeFilesList, proto.FilesPath{BotID: "fb-1", Path: "../etc"})
+	if env := panel.expect("invalid path", 5*time.Second, reply("f2")); env.Type != proto.TypeError || !strings.Contains(string(env.Data), "invalid path") {
+		t.Fatalf("invalid path: %s %s", env.Type, env.Data)
+	}
+
+	panel.send(conn, "f3", proto.TypeFilesRead, proto.FilesPath{BotID: "fb-1", Path: "app/index.js"})
+	env = panel.expect("files.read reply", 5*time.Second, reply("f3"))
+	var c proto.FileContent
+	if err := json.Unmarshal(env.Data, &c); err != nil || string(c.Content) != "hi\n" {
+		t.Fatalf("files.read: %s %s", env.Type, env.Data)
+	}
+
+	panel.send(conn, "f4", proto.TypeFilesWrite, proto.FileWrite{BotID: "fb-1", Path: "app/index.js", Content: []byte("v2")})
+	if env := panel.expect("files.write reply", 5*time.Second, reply("f4")); env.Type != proto.TypeOK {
+		t.Fatalf("files.write: %s %s", env.Type, env.Data)
+	}
+	rt.mu.Lock()
+	w := strings.Join(rt.writes, ";")
+	rt.mu.Unlock()
+	if w != `fb-1 app/index.js "v2" 100500` {
+		t.Fatalf("write reached runtime as %s", w)
+	}
+
+	panel.send(conn, "f5", proto.TypeFilesMkdir, proto.FilesPath{BotID: "bad id!", Path: "app/x"})
+	if env := panel.expect("bad id", 5*time.Second, reply("f5")); env.Type != proto.TypeError {
+		t.Fatalf("bad id accepted")
+	}
 }
 
 func TestAgentRejectsBadToken(t *testing.T) {
