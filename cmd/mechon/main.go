@@ -3,6 +3,7 @@
 //	mechon serve   run the panel (the default)
 //	mechon init    create the first admin account
 //	mechon keygen  print a new MECHON_SECRET_KEY
+//	mechon version print the version
 package main
 
 import (
@@ -30,6 +31,9 @@ import (
 	"github.com/jub0t/mechon/web"
 )
 
+// version is set at release time with -ldflags "-X main.version=…".
+var version = "dev"
+
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	cmd, args := "serve", os.Args[1:]
@@ -47,8 +51,10 @@ func main() {
 		err = initAdmin(ctx, args)
 	case "keygen":
 		fmt.Println(secrets.NewKey())
+	case "version":
+		fmt.Println(version)
 	default:
-		err = fmt.Errorf("unknown command %q (want serve, init or keygen)", cmd)
+		err = fmt.Errorf("unknown command %q (want serve, init, keygen or version)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "mechon:", err)
@@ -99,7 +105,7 @@ func serve(ctx context.Context) error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- hs.ListenAndServe() }()
-	slog.Info("panel listening", "addr", cfg.Listen, "public_url", cfg.PublicURL.String())
+	slog.Info("panel listening", "version", version, "addr", cfg.Listen, "public_url", cfg.PublicURL.String())
 
 	select {
 	case err := <-errc:

@@ -116,7 +116,8 @@ func (s *Server) setupFor(token string) agentSetup {
 	return agentSetup{
 		Token:    token,
 		PanelURL: url,
-		Command:  "sudo MECHON_PANEL_URL=" + url + " MECHON_NODE_TOKEN=" + token + " mechon-agent",
+		Command: "curl -fsSL https://raw.githubusercontent.com/jub0t/mechon/main/scripts/install-agent.sh | sudo MECHON_PANEL_URL=" +
+			url + " MECHON_NODE_TOKEN=" + token + " sh",
 	}
 }
 

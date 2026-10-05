@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build and package binaries
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          version="${TAG#v}"
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            for bin in mechon mechon-agent; do
+              stage="build/${bin}_${version}_linux_${arch}"
+              mkdir -p "$stage"
+              # main.version is set for both binaries; the agent also reports agent.Version to the panel.
+              CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+                -ldflags "-s -w -X main.version=${version} -X github.com/jub0t/mechon/internal/agent.Version=${version}" \
+                -o "$stage/$bin" "./cmd/$bin"
+              cp LICENSE README.md "$stage/"
+              tar -C "$stage" -czf "dist/${bin}_${version}_linux_${arch}.tar.gz" "$bin" LICENSE README.md
+            done
+          done
+          cd dist
+          sha256sum -- *.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          prerelease=""
+          case "$TAG" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$TAG" dist/* --title "$TAG" --generate-notes --verify-tag $prerelease

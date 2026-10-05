@@ -275,14 +275,18 @@ function NodeForm({ node, onDone }: { node?: Node; onDone: (s?: { name: string; 
 }
 
 function SetupView({ name, setup }: { name: string; setup: AgentSetup }) {
-  const unit = `[Unit]
+  const manual = `# /etc/mechon/agent.env  (chmod 600)
+MECHON_PANEL_URL=${setup.panelUrl}
+MECHON_NODE_TOKEN=${setup.token}
+
+# /etc/systemd/system/mechon-agent.service
+[Unit]
 Description=Mechon agent
 After=docker.service network-online.target
 Requires=docker.service
 
 [Service]
-Environment=MECHON_PANEL_URL=${setup.panelUrl}
-Environment=MECHON_NODE_TOKEN=${setup.token}
+EnvironmentFile=/etc/mechon/agent.env
 ExecStart=/usr/local/bin/mechon-agent
 Restart=always
 RestartSec=3
@@ -294,11 +298,16 @@ WantedBy=multi-user.target`
       <DialogHeader>
         <DialogTitle className="font-display text-[22px] font-bold tracking-[-0.015em]">Start the agent on {name}</DialogTitle>
         <DialogDescription>
-          On the server, with Docker installed and <code className="font-mono text-[13px]">mechon-agent</code> in your PATH, run this as root. The token is shown only now.
+          On a Linux server with Docker installed, run this. It installs the agent as a systemd service and checks the download. The token is shown only now.
         </DialogDescription>
       </DialogHeader>
-      <CopyBlock label="Quick start" text={setup.command} />
-      <CopyBlock label="Or as a systemd service · /etc/systemd/system/mechon-agent.service" text={unit} />
+      <CopyBlock label="Install" text={setup.command} />
+      <details className="group">
+        <summary className="cursor-pointer text-[13.5px] font-semibold text-muted-foreground hover:text-foreground">Install by hand instead</summary>
+        <div className="mt-3">
+          <CopyBlock label="Put the mechon-agent binary in /usr/local/bin, then" text={manual} />
+        </div>
+      </details>
       <p className="text-[13px] text-muted-foreground">The node turns online on this page as soon as the agent connects.</p>
     </div>
   )

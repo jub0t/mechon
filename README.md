@@ -113,6 +113,8 @@ make dev-web      # UI with hot reload on :5173
 
 Open http://localhost:5173 and sign in. Those credentials are for local development only. On a real install, create the first admin with `mechon init --email you@example.com`.
 
+To run Mechon on a real server, follow the [install guide](docs/install.md).
+
 <details>
 <summary><b>Configuration and tests</b></summary>
 

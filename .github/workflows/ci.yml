@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go (vet, test, gofmt)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: mechon
+          POSTGRES_PASSWORD: mechon
+          POSTGRES_DB: mechon_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mechon"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MECHON_TEST_DATABASE_URL: postgres://mechon:mechon@localhost:5432/mechon_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # web/dist/.gitkeep is tracked, so `go:embed all:dist` has something to embed without a UI build.
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./...
+
+  web:
+    name: Web (typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc -b
+      - run: pnpm build
+
+  agent:
+    name: Linux build (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build mechon-agent and mechon
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -trimpath -o /dev/null ./cmd/mechon-agent
+          go build -trimpath -o /dev/null ./cmd/mechon
