@@ -1,4 +1,4 @@
-import { LogOut, Moon, Sun } from 'lucide-react'
+import { LogOut, Moon, PanelLeft, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/command'
 import type { User } from '@/lib/api'
 import { navFor } from '@/lib/nav'
+import { toggleSidebar, useSidebarCollapsed } from '@/lib/sidebar'
 import { toggleTheme, useIsDark } from '@/lib/theme'
 import { useSignOut } from './user-menu'
 
@@ -35,6 +36,7 @@ export function useCommandPalette() {
 export function CommandPalette({ user, open, onOpenChange }: { user: User; open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate()
   const dark = useIsDark()
+  const collapsed = useSidebarCollapsed()
   const signOut = useSignOut()
   const run = (fn: () => void) => () => {
     onOpenChange(false)
@@ -62,6 +64,10 @@ export function CommandPalette({ user, open, onOpenChange }: { user: User; open:
           <CommandItem value="toggle theme dark light" onSelect={run(toggleTheme)}>
             {dark ? <Sun /> : <Moon />}
             Switch to {dark ? 'light' : 'dark'} theme
+          </CommandItem>
+          <CommandItem value="toggle collapse expand sidebar" onSelect={run(toggleSidebar)}>
+            <PanelLeft />
+            {collapsed ? 'Expand' : 'Collapse'} sidebar
           </CommandItem>
           <CommandItem value="sign out log out" onSelect={run(signOut)}>
             <LogOut />

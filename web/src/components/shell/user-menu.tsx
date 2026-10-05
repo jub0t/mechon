@@ -12,6 +12,7 @@ import {
 import type { User } from '@/lib/api'
 import { useLogout } from '@/lib/auth'
 import { toggleTheme, useIsDark } from '@/lib/theme'
+import { cn } from '@/lib/utils'
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -30,23 +31,33 @@ export function useSignOut() {
     })
 }
 
-export function UserMenu({ user }: { user: User }) {
+export function UserMenu({ user, compact = false }: { user: User; compact?: boolean }) {
   const dark = useIsDark()
   const navigate = useNavigate()
   const signOut = useSignOut()
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-[14px] p-2 text-left transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface-2 data-[state=open]:bg-surface-2">
+      <DropdownMenuTrigger
+        aria-label={compact ? `Account menu for ${user.name}` : undefined}
+        className={cn(
+          'flex items-center gap-3 rounded-[14px] p-2 text-left transition-colors outline-none hover:bg-surface-2 focus-visible:bg-surface-2 data-[state=open]:bg-surface-2',
+          compact ? 'mx-auto' : 'w-full',
+        )}
+      >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft font-display text-[13px] font-bold text-brand-text">
           {initials(user.name)}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-semibold">{user.name}</span>
-          <span className="block truncate text-[12.5px] text-muted-foreground">{user.email}</span>
-        </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-faint-foreground" />
+        {!compact && (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[14px] font-semibold">{user.name}</span>
+              <span className="block truncate text-[12.5px] text-muted-foreground">{user.email}</span>
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-faint-foreground" />
+          </>
+        )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-56 rounded-[14px] p-1.5">
+      <DropdownMenuContent side={compact ? 'right' : 'top'} align={compact ? 'end' : 'start'} className={cn('min-w-56 rounded-[14px] p-1.5', !compact && 'w-[var(--radix-dropdown-menu-trigger-width)]')}>
         <DropdownMenuLabel className="text-[12px] font-semibold tracking-[0.06em] text-faint-foreground uppercase">
           {user.role === 'admin' ? 'Administrator' : 'Account'}
         </DropdownMenuLabel>
