@@ -102,3 +102,16 @@ func (s *Server) clientIP(r *http.Request) string {
 	}
 	return host
 }
+
+// rateLimitAPI caps each client IP at 1,200 API requests a minute: far above what the UI or a CI
+// job needs, low enough that one client cannot hog the panel. Live streams count once.
+func (s *Server) rateLimitAPI(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.apiByIP.allow(s.clientIP(r), s.now()) {
+			w.Header().Set("Retry-After", "60")
+			writeError(w, r, errRateLimited)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

@@ -24,7 +24,7 @@
 </div>
 
 > [!WARNING]
-> Mechon is being rebuilt from scratch, in the open. It is **not ready to host customers yet**. See [where it stands](#status) and star or watch the repo to follow along.
+> Mechon was rebuilt from scratch and is in **preview**: everything works end to end, but nothing has run in production yet. See [where it stands](#status) and star or watch the repo to follow along.
 
 ## About
 
@@ -77,16 +77,15 @@ One server pays for itself at around 26 Standard customers. Every server after t
 
 ## Status
 
-Mechon is built in milestones. The full plan is in [the v0 spec](docs/spec-v0.md), and every decision behind it is in [the decision log](docs/decisions.md).
+Every v0 milestone in [the spec](docs/spec-v0.md) is built and tested end to end, from the panel to a real bot running in its sandbox. It has not been run in production yet, and no release has been tagged, so treat it as a preview. Every decision behind it is in [the decision log](docs/decisions.md).
 
-- ✅ **Panel and sign-in.** Single binary with the web UI embedded, Postgres, admin and user roles.
-- 🚧 **Plans, users and API keys.**
-- 🚧 **Nodes.** The agent connects, reports capacity and gets its orders.
-- 🚧 **Running bots.** Sandboxed containers, start, stop and restart, live logs and metrics.
-- 🚧 **Deploys.** Upload, git and API, with rollback.
-- 🚧 **Webhooks, the gVisor tier and the audit log.**
-
-✅ Done · 🚧 In progress
+- ✅ **Panel and sign-in.** One binary with the web UI built in, Postgres, admin and user roles, API keys.
+- ✅ **Plans, users and quotas.** Pools of bots, memory, CPU and disk per plan, per-customer overrides, enforced on the server.
+- ✅ **Nodes.** The agent dials out, reports capacity and converges on what the panel wants.
+- ✅ **Sandboxed bots.** Own container and Linux user, read-only root, no capabilities, cgroup limits, a disk image per bot, an egress firewall; twelve isolation attacks in the test suite all fail.
+- ✅ **Deploys.** Upload, git or API, install in a throwaway container, rollback, live console and metrics.
+- ✅ **For your billing system.** Operator API, signed webhooks with retries, audit log.
+- 🚧 **Next.** A CLI, agent templates (OpenClaw), the gVisor tier tested on real hosts, and the first tagged release.
 
 ## How it works
 

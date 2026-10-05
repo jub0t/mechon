@@ -36,6 +36,7 @@ type Server struct {
 
 	loginByIP    *limiter
 	loginByEmail *limiter
+	apiByIP      *limiter
 }
 
 func New(cfg config.Panel, pool *pgxpool.Pool, web fs.FS) (*Server, error) {
@@ -57,6 +58,7 @@ func New(cfg config.Panel, pool *pgxpool.Pool, web fs.FS) (*Server, error) {
 		artifactDir:  dir,
 		loginByIP:    newLimiter(30, 15*time.Minute),
 		loginByEmail: newLimiter(10, 15*time.Minute),
+		apiByIP:      newLimiter(1200, time.Minute),
 	}
 	s.hub = newHub(s)
 
@@ -164,7 +166,7 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { writeError(w, r, errNotFound) })
 
 	root := http.NewServeMux()
-	root.Handle("/api/", s.checkOrigin(s.loadPrincipal(api)))
+	root.Handle("/api/", s.rateLimitAPI(s.checkOrigin(s.loadPrincipal(api))))
 	root.HandleFunc("GET /agent/v1/connect", s.hub.serveAgent)
 	root.HandleFunc("GET /agent/v1/artifacts/{id}", s.serveArtifact)
 	root.Handle("/", s.spa())
@@ -190,6 +192,7 @@ func (s *Server) Background(ctx context.Context) {
 			}
 			s.loginByIP.sweep(now)
 			s.loginByEmail.sweep(now)
+			s.apiByIP.sweep(now)
 		}
 	}
 }

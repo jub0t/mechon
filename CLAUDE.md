@@ -56,3 +56,5 @@ A **self-hosted, multi-tenant bot hosting panel that hosting startups install on
 
 - **Spec (approved):** `docs/spec-v0.md`. Build from it, in its milestone order.
 - **Decision log:** `docs/decisions.md`.
+- **Status (2026-10-04):** all v0 milestones are built and tested end to end; not yet run in production or released. Next: CLI, agent templates, gVisor tested on real hosts, first tagged release.
+- **Dev loop:** `make seed` (admin@mechon.test / dev-password-123), `make dev-panel`, `make dev-web`; the agent runs in the Colima VM (see docs/install.md and the README).
