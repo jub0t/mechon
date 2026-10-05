@@ -64,16 +64,16 @@ The part that matters is isolation. Every bot runs in its own locked-down contai
 
 ## The math
 
-One [Hetzner AX41](https://www.hetzner.com/dedicated-rootserver/?drives=nvme) costs **€59 a month**: 6 cores (12 threads), 64 GB of RAM and 2× 512 GB NVMe. Keep 4 GB for the system and Mechon, and you have about 60 GB of memory to sell. Memory is what runs out first: Discord bots spend most of their time waiting on the gateway, so CPU can be shared safely and disk is plentiful.
+One [Hetzner AX41](https://www.hetzner.com/dedicated-rootserver/?drives=nvme) costs **about $65 a month** (billed as €59): 6 cores (12 threads), 64 GB of RAM and 2× 512 GB NVMe. Keep 4 GB for the system and Mechon, and you have about 60 GB of memory to sell. Memory is what runs out first: Discord bots spend most of their time waiting on the gateway, so CPU can be shared safely and disk is plentiful.
 
 | Plan (example price) | Per bot | Bots per server | Revenue / month | Profit / month |
 |---|---|---|---|---|
-| Starter · €1.50 | 256 MB RAM, ¼ core, 1 GB disk | 240 | €360 | **€301** |
-| Standard · €2.50 | 512 MB RAM, ½ core, 2 GB disk | 120 | €300 | **€241** |
-| Pro · €4.50 | 1 GB RAM, 1 core, 5 GB disk | 60 | €270 | **€211** |
-| Standard, 60% full | 512 MB RAM, ½ core, 2 GB disk | 72 | €180 | **€121** |
+| Starter · $1.50 | 256 MB RAM, ¼ core, 1 GB disk | 240 | $360 | **$295** |
+| Standard · $2.50 | 512 MB RAM, ½ core, 2 GB disk | 120 | $300 | **$235** |
+| Pro · $4.50 | 1 GB RAM, 1 core, 5 GB disk | 60 | $270 | **$205** |
+| Standard, 60% full | 512 MB RAM, ½ core, 2 GB disk | 72 | $180 | **$115** |
 
-One server pays for itself at around 24 Standard customers. Every server after that is the same math again, and Mechon is free. Prices exclude VAT; payment fees, support time and backups are yours to add, and the prices are examples, so set your own.
+One server pays for itself at around 26 Standard customers. Every server after that is the same math again, and Mechon is free. The dollar cost follows the euro exchange rate; taxes, payment fees, support time and backups are yours to add, and the prices are examples, so set your own.
 
 ## Status
 
