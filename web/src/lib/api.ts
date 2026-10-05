@@ -213,6 +213,9 @@ export type Activity = {
   deploys: { day: number; succeeded: number; failed: number }[]
 }
 
+export type FileEntry = { name: string; dir: boolean; link?: boolean; size: number; mode: number; modTime: string }
+export type FileContent = { path: string; size: number; modTime: string; binary: boolean; truncated: boolean; content: string }
+
 export type Webhook = { id: string; url: string; description: string; events: string[]; enabled: boolean; failed24h: number; createdAt: string }
 export type WebhookInput = { url: string; description: string; events: string[]; enabled?: boolean }
 export type Delivery = {
@@ -308,5 +311,10 @@ export const api = {
     return request<Deploy>('POST', `/bots/${id}/deploys`, fd)
   },
   gitDeploy: (id: string, b: { gitUrl: string; gitRef: string; token?: string }) => post<Deploy>(`/bots/${id}/deploys`, b),
+  listFiles: (id: string, path: string) => get<{ path: string; entries: FileEntry[] }>(`/bots/${id}/files?path=${encodeURIComponent(path)}`),
+  readFile: (id: string, path: string) => get<FileContent>(`/bots/${id}/files/content?path=${encodeURIComponent(path)}`),
+  writeFile: (id: string, path: string, content: string) => put<void>(`/bots/${id}/files/content`, { path, content }),
+  deleteFile: (id: string, path: string) => del(`/bots/${id}/files?path=${encodeURIComponent(path)}`),
+  makeDir: (id: string, path: string) => post<void>(`/bots/${id}/files/dir`, { path }),
   rollback: (id: string, deployId: string) => post<Deploy>(`/bots/${id}/deploys/${deployId}/rollback`),
 }

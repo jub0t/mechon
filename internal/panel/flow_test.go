@@ -59,7 +59,12 @@ func connectAgent(t *testing.T, ts *httptest.Server, token string) *fakeAgent {
 			a.got = append(a.got, env)
 			a.mu.Unlock()
 			reply := []byte(nil)
-			if env.Type == proto.TypeLogsSubscribe {
+			_ = reply
+			if env.Type == proto.TypeFilesList {
+				reply, _ = proto.Encode(env.ID, proto.TypeOK, proto.FilesListing{Path: "app", Entries: []proto.FileEntry{{Name: "index.js", Size: 5}}})
+			} else if env.Type == proto.TypeFilesRead {
+				reply, _ = proto.Encode(env.ID, proto.TypeOK, proto.FileContent{Path: "app/index.js", Size: 5, Content: []byte("hello")})
+			} else if env.Type == proto.TypeLogsSubscribe {
 				reply, _ = proto.Encode(env.ID, proto.TypeOK, proto.LogBatch{Lines: []proto.LogLine{{T: 1, Stream: "stdout", Text: "earlier line"}}})
 			} else {
 				reply, _ = proto.Encode(env.ID, proto.TypeOK, nil)
@@ -532,5 +537,58 @@ func TestSubscriptionOverrides(t *testing.T) {
 	// Users cannot change their own limits.
 	if code, _ := do(t, carol, ts, "PATCH", "/api/v1/subscriptions/"+subID, `{"overrides":{"memoryMb":99999}}`); code != 403 {
 		t.Fatalf("user changed their own limits: %d", code)
+	}
+}
+
+func TestFileManager(t *testing.T) {
+	ts, q := testServer(t)
+	createUser(t, q, "admin@example.com", "a-long-password", db.UserRoleAdmin)
+	admin := signIn(t, ts, "admin@example.com", "a-long-password")
+	plan := mustDo(t, admin, ts, 201, "POST", "/api/v1/plans", `{"slug":"p","name":"P","maxBots":2,"memoryMb":512,"cpuMillicores":500,"diskMb":1024}`)
+	mustDo(t, admin, ts, 201, "POST", "/api/v1/users", `{"email":"e@example.com","name":"Eve","password":"eve-password-1","planId":"`+plan["id"].(string)+`"}`)
+	mustDo(t, admin, ts, 201, "POST", "/api/v1/users", `{"email":"f@example.com","name":"Finn","password":"finn-password"}`)
+	node := mustDo(t, admin, ts, 201, "POST", "/api/v1/nodes", `{"name":"n","memoryMb":4096,"cpuMillicores":4000,"diskMb":20480}`)
+	agent := connectAgent(t, ts, node["setup"].(map[string]any)["token"].(string))
+	agent.next(proto.TypeSync)
+
+	eve := signIn(t, ts, "e@example.com", "eve-password-1")
+	sub := doList(t, eve, ts, "/api/v1/me/subscriptions")[0]["id"].(string)
+	bot := mustDo(t, eve, ts, 201, "POST", "/api/v1/bots", `{"subscriptionId":"`+sub+`","name":"b","template":"bun","memoryMb":128,"cpuMillicores":100,"diskMb":256,"env":{"DISCORD_TOKEN":"t"}}`)
+	agent.next(proto.TypeBotApply)
+	base := "/api/v1/bots/" + bot["id"].(string) + "/files"
+
+	listing := mustDo(t, eve, ts, 200, "GET", base+"?path=app", "")
+	if listing["path"] != "app" || len(listing["entries"].([]any)) != 1 {
+		t.Fatalf("listing: %v", listing)
+	}
+	var req proto.FilesPath
+	json.Unmarshal(agent.next(proto.TypeFilesList).Data, &req)
+	if req.BotID != bot["id"] || req.Path != "app" {
+		t.Fatalf("files.list sent %+v", req)
+	}
+	if f := mustDo(t, eve, ts, 200, "GET", base+"/content?path=app/index.js", ""); f["content"] != "hello" {
+		t.Fatalf("read: %v", f)
+	}
+	mustDo(t, eve, ts, 204, "PUT", base+"/content", `{"path":"data/notes.txt","content":"hi"}`)
+	var wr proto.FileWrite
+	json.Unmarshal(agent.next(proto.TypeFilesWrite).Data, &wr)
+	if wr.Path != "data/notes.txt" || string(wr.Content) != "hi" {
+		t.Fatalf("files.write sent %+v", wr)
+	}
+
+	for _, bad := range []string{"../etc/passwd", "/etc/passwd", ".mechon/deploy", "app/../../x", "app//x", "data/x/", "etc"} {
+		if code, _ := do(t, eve, ts, "GET", base+"/content?path="+bad, ""); code != 400 {
+			t.Errorf("path %q: got %d, want 400", bad, code)
+		}
+	}
+	if code, _ := do(t, eve, ts, "DELETE", base+"?path=app", ""); code != 400 {
+		t.Errorf("deleting a root: %d", code)
+	}
+	finn := signIn(t, ts, "f@example.com", "finn-password")
+	if code, _ := do(t, finn, ts, "GET", base+"?path=app", ""); code != 404 {
+		t.Fatalf("another user listed the files: %d", code)
+	}
+	if a := doList(t, admin, ts, "/api/v1/audit?prefix=bot.file"); len(a) != 1 || a[0]["action"] != "bot.file.write" {
+		t.Fatalf("audit: %v", a)
 	}
 }

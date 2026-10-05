@@ -42,6 +42,21 @@ const (
 	TypeBotRestart      = "bot.restart"      // BotRef
 	TypeLogsSubscribe   = "logs.subscribe"   // LogsSubscribe; reply Data is LogBatch with the tail
 	TypeLogsUnsubscribe = "logs.unsubscribe" // BotRef
+
+	// File manager. Paths are relative to the bot's volume and start with "app/" (the code at
+	// /home/container) or "data/" (persistent, at /data); "" lists those two roots. The agent
+	// resolves every path inside the volume (os.Root), so ".." and symlinks cannot escape it.
+	TypeFilesList   = "files.list"   // FilesPath; reply FilesListing
+	TypeFilesRead   = "files.read"   // FilesPath; reply FileContent
+	TypeFilesWrite  = "files.write"  // FileWrite; reply ok
+	TypeFilesDelete = "files.delete" // FilesPath; reply ok (directories recursively)
+	TypeFilesMkdir  = "files.mkdir"  // FilesPath; reply ok
+)
+
+// Size limits for the file manager. Larger files are listed but not opened in the editor.
+const (
+	MaxFileRead  = 1 << 20
+	MaxFileWrite = 1 << 20
 )
 
 const (
@@ -192,6 +207,42 @@ type Limits struct {
 	CPUMillicores int `json:"cpuMillicores"`
 	DiskMB        int `json:"diskMb"`
 	Pids          int `json:"pids"`
+}
+
+// ---------- File manager ----------
+
+type FilesPath struct {
+	BotID string `json:"botId"`
+	Path  string `json:"path"`
+}
+
+type FileEntry struct {
+	Name    string    `json:"name"`
+	Dir     bool      `json:"dir"`
+	Link    bool      `json:"link,omitempty"` // a symlink; shown, never followed
+	Size    int64     `json:"size"`
+	Mode    uint32    `json:"mode"` // permission bits
+	ModTime time.Time `json:"modTime"`
+}
+
+type FilesListing struct {
+	Path    string      `json:"path"`
+	Entries []FileEntry `json:"entries"` // directories first, then by name
+}
+
+type FileContent struct {
+	Path      string    `json:"path"`
+	Size      int64     `json:"size"`
+	ModTime   time.Time `json:"modTime"`
+	Binary    bool      `json:"binary"`    // not shown as text; Content is empty
+	Truncated bool      `json:"truncated"` // larger than MaxFileRead; Content is empty
+	Content   []byte    `json:"content,omitempty"`
+}
+
+type FileWrite struct {
+	BotID   string `json:"botId"`
+	Path    string `json:"path"`
+	Content []byte `json:"content"`
 }
 
 // ---------- Helpers ----------

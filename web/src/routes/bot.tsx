@@ -21,7 +21,7 @@ import {
   WifiOff,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { type DragEvent, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type DragEvent, type FormEvent, lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { Sparkline } from '@/components/data/chart'
@@ -42,7 +42,10 @@ import { cn } from '@/lib/utils'
 import { NotFoundPage } from './not-found'
 import { TemplateMark } from './bots'
 
-type Tab = 'console' | 'deploys' | 'metrics' | 'env' | 'settings'
+// The editor pulls in CodeMirror; load it only when the Files tab opens.
+const FileManager = lazy(() => import('@/components/files/file-manager').then((m) => ({ default: m.FileManager })))
+
+type Tab = 'console' | 'files' | 'deploys' | 'metrics' | 'env' | 'settings'
 
 export function BotPage() {
   const { id = '' } = useParams()
@@ -129,6 +132,7 @@ export function BotPage() {
         onChange={setTab}
         options={[
           { value: 'console', label: 'Console' },
+          { value: 'files', label: 'Files' },
           { value: 'deploys', label: 'Deploys' },
           { value: 'metrics', label: 'Metrics' },
           { value: 'env', label: 'Environment' },
@@ -137,6 +141,11 @@ export function BotPage() {
       />
 
       {tab === 'console' && <Console logs={stream.logs} connected={stream.connected} onClear={() => stream.setLogs([])} botName={b.name} />}
+      {tab === 'files' && (
+        <Suspense fallback={<Skeleton className="h-[min(640px,72svh)] rounded-[20px]" />}>
+          <FileManager bot={b} />
+        </Suspense>
+      )}
       {tab === 'deploys' && <Deploys bot={b} live={stream.deploy} />}
       {tab === 'metrics' && <Metrics bot={b} />}
       {tab === 'env' && <Environment bot={b} />}

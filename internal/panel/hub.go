@@ -136,6 +136,18 @@ func (h *Hub) conn(nodeID uuid.UUID) *agentConn {
 	return h.conns[nodeID]
 }
 
+func (h *Hub) nodeConnByString(nodeID string) (*agentConn, error) {
+	id, err := uuid.Parse(nodeID)
+	if err != nil {
+		return nil, errNodeOffline
+	}
+	c := h.conn(id)
+	if c == nil {
+		return nil, errNodeOffline
+	}
+	return c, nil
+}
+
 func (h *Hub) online(nodeID uuid.UUID) (nodeLive, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
