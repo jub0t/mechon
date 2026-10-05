@@ -5,7 +5,11 @@ import { Card, CardHeader, StatusDot } from '@/components/page/card'
 import { PageHeader } from '@/components/page/page-header'
 import { Reveal } from '@/components/motion/reveal'
 import { isMac, Kbd } from '@/components/shell/command-palette'
+import { Link } from 'react-router'
+import { Stat } from '@/components/data/stat'
+import { Button } from '@/components/ui/button'
 import { api, type User } from '@/lib/api'
+import { mb } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 function greeting(d = new Date()) {
@@ -22,17 +26,21 @@ export function OverviewPage({ user }: { user: User }) {
 
 // ---------- Admin ----------
 
-type Step = { icon: typeof Server; title: string; text: string; done: boolean; milestone?: number }
+type Step = { icon: typeof Server; title: string; text: string; done: boolean; href: string; cta: string }
 
 function AdminOverview({ user }: { user: User }) {
+  const o = useQuery({ queryKey: ['overview'], queryFn: api.overview, refetchInterval: 10000 })
+  const d = o.data
   const steps: Step[] = [
-    { icon: ShieldCheck, title: 'Create the admin account', text: 'That is you. Signed in and ready.', done: true },
-    { icon: Server, title: 'Add your first node', text: 'Install the agent on any server with Docker. It dials out to this panel, so no ports to open.', done: false, milestone: 3 },
-    { icon: Layers, title: 'Create a plan', text: 'Set the bots, memory, CPU and disk you sell. Limits are enforced by the kernel, not by trust.', done: false, milestone: 2 },
-    { icon: Users, title: 'Add a user', text: 'By hand, or automatically from Paymenter, WHMCS or Stripe through the API.', done: false, milestone: 2 },
-    { icon: Rocket, title: 'Deploy a bot', text: 'From a discord.js, discord.py or Bun template, by upload, git or API.', done: false, milestone: 4 },
+    { icon: ShieldCheck, title: 'Create the admin account', text: 'That is you. Signed in and ready.', done: true, href: '/account', cta: 'Account' },
+    { icon: Server, title: 'Add your first node', text: 'Install the agent on any server with Docker. It dials out to this panel, so no ports to open.', done: (d?.nodes ?? 0) > 0, href: '/nodes', cta: 'Add node' },
+    { icon: Layers, title: 'Create a plan', text: 'Set the bots, memory, CPU and disk you sell. Limits are enforced by the kernel, not by trust.', done: (d?.plans ?? 0) > 0, href: '/plans', cta: 'New plan' },
+    { icon: Users, title: 'Add a user', text: 'By hand, or automatically from your billing system through the API.', done: (d?.users ?? 0) > 0, href: '/users', cta: 'New user' },
+    { icon: Rocket, title: 'Deploy a bot', text: 'From a discord.js, discord.py or Bun template, by upload or API.', done: (d?.bots ?? 0) > 0, href: '/bots', cta: 'New bot' },
   ]
   const done = steps.filter((s) => s.done).length
+  const running = d?.botsByState.running ?? 0
+  const crashed = d?.botsByState.crashed ?? 0
 
   return (
     <>
@@ -40,15 +48,28 @@ function AdminOverview({ user }: { user: User }) {
         <PageHeader
           eyebrow={today()}
           title={`${greeting()}, ${firstName(user.name)}.`}
-          description="This is your hosting panel. Work through the setup below and you will have a bot running in its own sandbox."
+          description={done < steps.length ? 'This is your hosting panel. Work through the setup below and you will have a bot running in its own sandbox.' : 'Everything your hosting runs on, at a glance.'}
         />
       </Reveal>
 
+      <Reveal delay={0.04}>
+        <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat label="Bots running" value={d ? `${running}/${d.bots}` : '…'} hint={crashed ? `${crashed} crashed` : 'none crashed'} tone={crashed ? 'danger' : undefined} />
+          <Stat label="Nodes online" value={d ? `${d.nodesOnline}/${d.nodes}` : '…'} hint={d && d.nodes > d.nodesOnline ? 'some are offline' : 'all connected'} tone={d && d.nodes > d.nodesOnline ? 'orange' : undefined} />
+          <Stat label="Customers" value={d?.users ?? '…'} hint={`${d?.plans ?? 0} plans on sale`} />
+          <Stat
+            label="Memory sold"
+            value={d ? (d.capacity.memoryMb ? `${Math.round((d.allocated.memoryMb / d.capacity.memoryMb) * 100)}%` : '0%') : '…'}
+            hint={d ? `${mb(d.allocated.memoryMb)} of ${mb(d.capacity.memoryMb)}` : ''}
+          />
+        </div>
+      </Reveal>
+
       <div className="grid gap-5 lg:grid-cols-3">
-        <Reveal delay={0.06} className="lg:col-span-2">
+        <Reveal delay={0.08} className="lg:col-span-2">
           <Card className="overflow-hidden">
             <CardHeader
-              title="Get your host ready"
+              title={done === steps.length ? 'Your host is set up' : 'Get your host ready'}
               aside={
                 <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
                   {done} of {steps.length}
@@ -68,7 +89,7 @@ function AdminOverview({ user }: { user: User }) {
 
         <div className="flex flex-col gap-5">
           <Reveal delay={0.12}>
-            <PanelHealth />
+            <PanelHealth nodes={d ? `${d.nodesOnline} of ${d.nodes} online` : '…'} nodesOk={d ? d.nodes === 0 ? null : d.nodesOnline === d.nodes : null} />
           </Reveal>
           <Reveal delay={0.18}>
             <Card className="px-6 py-5">
@@ -119,15 +140,15 @@ function StepRow({ step, index }: { step: Step; index: number }) {
       {step.done ? (
         <span className="mt-1 inline-flex h-7 items-center rounded-full bg-brand-soft px-2.5 text-[12.5px] font-semibold text-brand-text">Done</span>
       ) : (
-        <span className="mt-1 hidden h-7 items-center rounded-full bg-surface-2 px-2.5 text-[12.5px] font-semibold whitespace-nowrap text-faint-foreground sm:inline-flex">
-          Milestone {step.milestone}
-        </span>
+        <Button asChild size="sm" variant="outline" className="mt-0.5 shrink-0">
+          <Link to={step.href}>{step.cta}</Link>
+        </Button>
       )}
     </li>
   )
 }
 
-function PanelHealth() {
+function PanelHealth({ nodes, nodesOk }: { nodes: string; nodesOk: boolean | null }) {
   const health = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
@@ -142,7 +163,7 @@ function PanelHealth() {
   const rows = [
     { label: 'API', ok: !health.isError, detail: health.data ? `${health.data.ms} ms` : health.isError ? 'unreachable' : '…' },
     { label: 'Database', ok, detail: health.isPending ? '…' : ok ? 'connected' : 'unreachable' },
-    { label: 'Nodes', ok: null, detail: 'none yet' },
+    { label: 'Nodes', ok: nodesOk, detail: nodes },
   ]
   return (
     <Card>

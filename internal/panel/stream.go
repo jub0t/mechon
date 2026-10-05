@@ -15,11 +15,8 @@ func (s *Server) botStream(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		writeError(w, r, fmt.Errorf("streaming unsupported"))
-		return
-	}
+	// The logging middleware wraps the writer; ResponseController unwraps it to reach Flush.
+	rc := http.NewResponseController(w)
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
 	h.Set("Cache-Control", "no-store")
@@ -37,7 +34,7 @@ func (s *Server) botStream(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, b); err != nil {
 			return err
 		}
-		flusher.Flush()
+		rc.Flush()
 		return nil
 	}
 	_, online := s.hub.online(row.Bot.NodeID)
@@ -62,7 +59,7 @@ func (s *Server) botStream(w http.ResponseWriter, r *http.Request) {
 			if _, err := fmt.Fprint(w, ": keepalive\n\n"); err != nil {
 				return
 			}
-			flusher.Flush()
+			rc.Flush()
 		}
 	}
 }

@@ -24,7 +24,7 @@ const ADMIN: NavItem[] = [
 ]
 
 const USER: NavItem[] = [
-  { href: '/', label: 'Bots', icon: Bot },
+  { href: '/', label: 'Your bots', icon: Bot },
   { href: '/account', label: 'Account', icon: KeyRound },
 ]
 
@@ -32,3 +32,10 @@ export const navFor = (role: Role) => (role === 'admin' ? ADMIN : USER)
 
 export const isActive = (href: string, pathname: string) =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
+
+/** For users, a bot page belongs to "Your bots" at /. */
+export const activeHref = (items: NavItem[], pathname: string) => {
+  const hit = items.filter((i) => isActive(i.href, pathname)).sort((a, b) => b.href.length - a.href.length)[0]
+  if (hit) return hit.href
+  return pathname.startsWith('/bots') ? '/' : null
+}

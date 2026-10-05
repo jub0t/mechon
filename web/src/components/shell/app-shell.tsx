@@ -3,7 +3,7 @@ import { Search } from 'lucide-react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { Logo } from '@/components/brand/logo'
 import type { User } from '@/lib/api'
-import { isActive, navFor } from '@/lib/nav'
+import { activeHref, navFor } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 import { CommandPalette, isMac, Kbd, useCommandPalette } from './command-palette'
 import { ThemeToggle } from './theme-toggle'
@@ -14,6 +14,7 @@ export function AppShell({ user }: { user: User }) {
   const { pathname } = useLocation()
   const reduce = useReducedMotion()
   const items = navFor(user.role)
+  const current = activeHref(items, pathname)
 
   return (
     <div className="flex min-h-svh">
@@ -43,7 +44,7 @@ export function AppShell({ user }: { user: User }) {
         </p>
         <nav className="flex flex-col gap-0.5">
           {items.map((item) => {
-            const active = isActive(item.href, pathname)
+            const active = item.href === current
             return (
               <Link
                 key={item.href}
@@ -95,7 +96,7 @@ export function AppShell({ user }: { user: User }) {
           </div>
           <nav className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2">
             {items.map((item) => {
-              const active = isActive(item.href, pathname)
+              const active = item.href === current
               return (
                 <Link
                   key={item.href}
