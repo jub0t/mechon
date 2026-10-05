@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, MoreHorizontal, Plus, Server, Settings2, Trash2, Wrench } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useCallback, useState } from 'react'
+import { useNewParam } from '@/hooks/use-new-param'
 import { toast } from 'sonner'
 import { Meter } from '@/components/data/meter'
 import { Field, FormError } from '@/components/data/field'
@@ -21,6 +22,7 @@ import { ago, bytes, cores, mb, pct } from '@/lib/format'
 export function NodesPage() {
   const nodes = useQuery({ queryKey: ['nodes'], queryFn: api.nodes, refetchInterval: 5000 })
   const [editing, setEditing] = useState<Node | 'new' | null>(null)
+  useNewParam(useCallback(() => setEditing('new'), []))
   const [setup, setSetup] = useState<{ name: string; setup: AgentSetup } | null>(null)
   const qc = useQueryClient()
   const rotate = useMutation({

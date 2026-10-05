@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot as BotIcon, Check, ChevronRight, Plus } from 'lucide-react'
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useMemo, useState } from 'react'
+import { useNewParam } from '@/hooks/use-new-param'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Field, FormError } from '@/components/data/field'
@@ -40,6 +41,7 @@ export function BotsPage({ title = 'Bots', description }: { title?: string; desc
   const me = useMe().data!
   const bots = useQuery({ queryKey: ['bots'], queryFn: () => api.bots(), refetchInterval: 5000 })
   const [creating, setCreating] = useState(false)
+  useNewParam(useCallback(() => setCreating(true), []))
   const admin = me.role === 'admin'
 
   return (

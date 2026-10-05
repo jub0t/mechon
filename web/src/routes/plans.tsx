@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Cpu, HardDrive, Layers, MemoryStick, Pencil, Plus, ShieldCheck, Bot as BotIcon } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useCallback, useState } from 'react'
+import { useNewParam } from '@/hooks/use-new-param'
 import { toast } from 'sonner'
 import { Field, FormError } from '@/components/data/field'
 import { EmptyState } from '@/components/data/stat'
@@ -18,6 +19,7 @@ import { cores, mb } from '@/lib/format'
 export function PlansPage() {
   const plans = useQuery({ queryKey: ['plans'], queryFn: api.plans })
   const [editing, setEditing] = useState<Plan | 'new' | null>(null)
+  useNewParam(useCallback(() => setEditing('new'), []))
 
   return (
     <>

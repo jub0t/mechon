@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bot, Check, Layers, Rocket, Server, ShieldCheck, Users } from 'lucide-react'
+import { Bot, Check, ChevronRight, Layers, Rocket, Server, ShieldCheck, Users } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { Card, CardHeader, StatusDot } from '@/components/page/card'
 import { PageHeader } from '@/components/page/page-header'
@@ -7,7 +7,6 @@ import { Reveal } from '@/components/motion/reveal'
 import { isMac, Kbd } from '@/components/shell/command-palette'
 import { Link } from 'react-router'
 import { Stat } from '@/components/data/stat'
-import { Button } from '@/components/ui/button'
 import { api, type User } from '@/lib/api'
 import { mb } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -33,10 +32,10 @@ function AdminOverview({ user }: { user: User }) {
   const d = o.data
   const steps: Step[] = [
     { icon: ShieldCheck, title: 'Create the admin account', text: 'That is you. Signed in and ready.', done: true, href: '/account', cta: 'Account' },
-    { icon: Server, title: 'Add your first node', text: 'Install the agent on any server with Docker. It dials out to this panel, so no ports to open.', done: (d?.nodes ?? 0) > 0, href: '/nodes', cta: 'Add node' },
-    { icon: Layers, title: 'Create a plan', text: 'Set the bots, memory, CPU and disk you sell. Limits are enforced by the kernel, not by trust.', done: (d?.plans ?? 0) > 0, href: '/plans', cta: 'New plan' },
-    { icon: Users, title: 'Add a user', text: 'By hand, or automatically from your billing system through the API.', done: (d?.users ?? 0) > 0, href: '/users', cta: 'New user' },
-    { icon: Rocket, title: 'Deploy a bot', text: 'From a discord.js, discord.py or Bun template, by upload or API.', done: (d?.bots ?? 0) > 0, href: '/bots', cta: 'New bot' },
+    { icon: Server, title: 'Add your first node', text: 'Install the agent on any server with Docker. It dials out to this panel, so no ports to open.', done: (d?.nodes ?? 0) > 0, href: '/nodes?new=1', cta: 'Add node' },
+    { icon: Layers, title: 'Create a plan', text: 'Set the bots, memory, CPU and disk you sell. Limits are enforced by the kernel, not by trust.', done: (d?.plans ?? 0) > 0, href: '/plans?new=1', cta: 'New plan' },
+    { icon: Users, title: 'Add a user', text: 'By hand, or automatically from your billing system through the API.', done: (d?.users ?? 0) > 0, href: '/users?new=1', cta: 'New user' },
+    { icon: Rocket, title: 'Deploy a bot', text: 'From a discord.js, discord.py or Bun template, by upload or API.', done: (d?.bots ?? 0) > 0, href: '/bots?new=1', cta: 'New bot' },
   ]
   const done = steps.filter((s) => s.done).length
   const running = d?.botsByState.running ?? 0
@@ -121,29 +120,31 @@ function Progress({ value }: { value: number }) {
 
 function StepRow({ step, index }: { step: Step; index: number }) {
   return (
-    <li className="flex items-start gap-4 border-t px-6 py-4 first:border-t-0">
-      <span
-        className={cn(
-          'mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[12px]',
-          step.done ? 'bg-brand text-brand-foreground' : 'bg-surface-2 text-muted-foreground',
+    <li className="border-t first:border-t-0">
+      <Link to={step.href} className="group flex items-start gap-4 px-6 py-4 transition-colors hover:bg-surface-2/60 focus-visible:bg-surface-2/60 focus-visible:outline-none">
+        <span
+          className={cn(
+            'mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-[12px] transition-colors',
+            step.done ? 'bg-brand text-brand-foreground' : 'bg-surface-2 text-muted-foreground group-hover:bg-brand-soft group-hover:text-brand-text',
+          )}
+        >
+          {step.done ? <Check className="size-[18px]" strokeWidth={2.75} /> : <step.icon className="size-[18px]" strokeWidth={2.25} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className={cn('text-[15px] font-semibold', step.done && 'text-muted-foreground line-through decoration-faint-foreground/60')}>
+            <span className="mr-1.5 text-faint-foreground tabular-nums">{index + 1}.</span>
+            {step.title}
+          </p>
+          <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{step.text}</p>
+        </div>
+        {step.done ? (
+          <span className="mt-1 inline-flex h-7 items-center rounded-full bg-brand-soft px-2.5 text-[12.5px] font-semibold text-brand-text">Done</span>
+        ) : (
+          <span className="mt-0.5 inline-flex h-9 shrink-0 items-center gap-1 rounded-full border-[1.5px] border-foreground/15 px-4 text-sm font-semibold transition-colors group-hover:border-foreground/40">
+            {step.cta} <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </span>
         )}
-      >
-        {step.done ? <Check className="size-[18px]" strokeWidth={2.75} /> : <step.icon className="size-[18px]" strokeWidth={2.25} />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className={cn('text-[15px] font-semibold', step.done && 'text-muted-foreground line-through decoration-faint-foreground/60')}>
-          <span className="mr-1.5 text-faint-foreground tabular-nums">{index + 1}.</span>
-          {step.title}
-        </p>
-        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{step.text}</p>
-      </div>
-      {step.done ? (
-        <span className="mt-1 inline-flex h-7 items-center rounded-full bg-brand-soft px-2.5 text-[12.5px] font-semibold text-brand-text">Done</span>
-      ) : (
-        <Button asChild size="sm" variant="outline" className="mt-0.5 shrink-0">
-          <Link to={step.href}>{step.cta}</Link>
-        </Button>
-      )}
+      </Link>
     </li>
   )
 }

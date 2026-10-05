@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, KeyRound, Layers, MoreHorizontal, Plus, ShieldCheck, Trash2, UserRound, Users as UsersIcon } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useCallback, useState } from 'react'
+import { useNewParam } from '@/hooks/use-new-param'
 import { toast } from 'sonner'
 import { Field, FormError } from '@/components/data/field'
 import { Pill } from '@/components/data/state-badge'
@@ -43,6 +44,7 @@ export function UsersPage() {
   const me = useMe().data
   const qc = useQueryClient()
   const [modal, setModal] = useState<Modal>(null)
+  useNewParam(useCallback(() => setModal({ kind: 'create' }), []))
   const suspend = useMutation({
     mutationFn: ({ id, s }: { id: string; s: boolean }) => api.suspendUser(id, s),
     onSuccess: (u) => {
