@@ -1,9 +1,0 @@
-[package]
-name = "mechon-redis"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-uuid = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }

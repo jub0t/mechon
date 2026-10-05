@@ -1,9 +1,0 @@
-[package]
-name = "mechon-types"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-serde = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
