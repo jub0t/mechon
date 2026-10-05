@@ -6,15 +6,15 @@
     </td>
     <td>
       <h1>Mechon</h1>
-      <h3>Start your own bot hosting company. The open-source, self-hosted panel that runs every Discord bot in its own sandbox.</h3>
+      <h3>Start your own bot hosting company. A self-hosted panel that runs every Discord bot in its own sandbox.</h3>
     </td>
   </tr>
 </table>
 
-<img src="assets/banner.png" alt="Mechon: start your own bot hosting company" width="100%" />
+<img src="assets/screens/overview.png" alt="The Mechon dashboard: bots by state, memory in use, deploys and node capacity" width="100%" />
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-Pre--alpha-F59E0B?style=flat-square&labelColor=212123" alt="Status: pre-alpha" />
+  <img src="https://img.shields.io/badge/Status-Preview-F59E0B?style=flat-square&labelColor=212123" alt="Status: preview" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-8B4FE8?style=flat-square&labelColor=212123" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/Built%20with-Go-8B4FE8?style=flat-square&logo=go&logoColor=F8F8F8&labelColor=212123" alt="Built with Go" />
   <img src="https://img.shields.io/badge/Runs%20on-Linux-8B4FE8?style=flat-square&logo=linux&logoColor=F8F8F8&labelColor=212123" alt="Runs on Linux" />
@@ -23,117 +23,62 @@
 
 </div>
 
-> [!WARNING]
-> Mechon was rebuilt from scratch and is in **preview**: everything works end to end, but nothing has run in production yet. See [where it stands](#status) and star or watch the repo to follow along.
-
 ## About
 
-Mechon is a control panel for running a bot hosting business on your own servers. Install it, define the plans you sell, and give bot developers a clean place to deploy their bots, watch the logs and hit restart. Think Pterodactyl, but built for bots instead of game servers.
+Mechon is Pterodactyl for bots. Install it on your servers, define the plans you sell, and your customers get a clean panel to deploy their bots, watch the logs and hit restart. You keep the servers, the customers and the money.
 
-The part that matters is isolation. Every bot runs in its own locked-down container, as its own Linux user, with memory, CPU, process and disk limits the kernel enforces. A customer's bot cannot read another customer's token, touch their files, or starve their neighbours.
-
-**Good for:** starting a Discord bot hosting company, adding bot hosting to an existing host, communities that host their members' bots, agencies running bots for clients. Next up: always-on AI agents and Telegram and Slack bots.
+Every bot runs in its own locked-down container as its own Linux user, with memory, CPU, process and disk limits the kernel enforces. One customer's bot cannot read another's token, touch their files or starve their neighbours.
 
 ## Highlights
 
-- 🔒 **Every bot in its own sandbox.** Its own container and Linux user, a read-only filesystem, no capabilities, no route to other bots or your private network.
-- 📏 **Limits the kernel enforces.** Memory, CPU and process caps through cgroups, and a fixed-size disk per bot. Nothing gets polled and killed late.
-- 🧾 **Plans and quotas.** Sell pools of bots, memory, CPU and disk. Every request is checked against the plan on the server.
-- 💳 **Plugs into your billing.** An operator API and signed webhooks for Paymenter, WHMCS or Stripe. Mechon does not do billing and does not take a cut.
-- 🚀 **Deploy any way.** Templates for discord.js, discord.py and Bun. Upload a folder, deploy from git, or ship from CI with an API key.
-- 📟 **Live console and metrics.** Logs stream as they happen. CPU and memory per bot, and capacity per server.
-- 🧱 **No open ports on your nodes.** The node agent dials out to the panel, so servers can sit behind NAT or a firewall.
-- 🛡️ **A hardened tier.** Switch a plan to gVisor for an extra kernel boundary between customers.
-- 📦 **Two binaries, no sprawl.** The panel (web UI built in) plus Postgres, and one agent per server next to Docker. No Kubernetes, no Redis.
-- 🎨 **A panel people enjoy using.** Dark and light themes, <kbd>⌘</kbd> <kbd>K</kbd> everywhere.
+- 🔒 **A sandbox per bot.** Read-only filesystem, no capabilities, no route to other bots or your private network.
+- 🧾 **Plans and quotas.** Sell pools of bots, memory, CPU and disk, with per-customer overrides when you need them.
+- 🚀 **Deploy any way.** discord.js, discord.py and Bun templates. Upload a folder, deploy from git, or ship from CI.
+- 📟 **Live console and metrics.** Logs as they happen, usage per bot, capacity per server.
+- 💳 **Plugs into your billing.** An API and signed webhooks for Paymenter, WHMCS or Stripe. No cut, no lock-in.
+- 📦 **Two binaries.** The panel with Postgres, and one agent per server next to Docker. Nodes dial out, so no ports to open.
 
-## The panel
+## Screenshots
 
-<img src="assets/panel-login.jpg" alt="The Mechon sign-in page" width="100%" />
-
-## Why not something else?
-
-|  | **Mechon** | Pterodactyl | Coolify |
-|---|---|---|---|
-| Built for | Bots and agents | Game servers | Web apps |
-| Sell hosting to customers with plans | ✅ | ✅ | ❌ |
-| Per-customer quotas enforced by the server | ✅ | ✅ | ❌ |
-| Bot templates out of the box | ✅ | Community eggs | Dockerfiles |
-| Nodes need no inbound ports | ✅ | ❌ | ❌ |
-| License | MIT | MIT | Apache 2.0 |
+<table>
+  <tr>
+    <td width="50%"><img src="assets/screens/console.png" alt="A bot's live console with memory, CPU and disk usage" /><p align="center"><sub>Live console and usage for every bot</sub></p></td>
+    <td width="50%"><img src="assets/screens/deploys.png" alt="Deploy history with a rollback" /><p align="center"><sub>Deploys by upload, git or API, with rollback</sub></p></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/screens/new-bot.png" alt="Creating a bot from a template" /><p align="center"><sub>Pick a template and a size, paste the token</sub></p></td>
+    <td width="50%"><img src="assets/screens/bots-light.png" alt="The bot list in the light theme" /><p align="center"><sub>Every bot at a glance, dark or light</sub></p></td>
+  </tr>
+</table>
 
 ## The math
 
-One [Hetzner AX41](https://www.hetzner.com/dedicated-rootserver/?drives=nvme) costs **about $65 a month** (billed as €59): 6 cores (12 threads), 64 GB of RAM and 2× 512 GB NVMe. Keep 4 GB for the system and Mechon, and you have about 60 GB of memory to sell. Memory is what runs out first: Discord bots spend most of their time waiting on the gateway, so CPU can be shared safely and disk is plentiful.
+One [Hetzner AX41](https://www.hetzner.com/dedicated-rootserver/?drives=nvme) costs **about $65 a month**: 6 cores, 64 GB of RAM, 2× 512 GB NVMe. Keep 4 GB for the system and you have about 60 GB to sell. Bots mostly wait on the network, so memory runs out first.
 
 | Plan (example price) | Per bot | Bots per server | Revenue / month | Profit / month |
 |---|---|---|---|---|
-| Starter · $1.50 | 256 MB RAM, ¼ core, 1 GB disk | 240 | $360 | **$295** |
-| Standard · $2.50 | 512 MB RAM, ½ core, 2 GB disk | 120 | $300 | **$235** |
-| Pro · $4.50 | 1 GB RAM, 1 core, 5 GB disk | 60 | $270 | **$205** |
-| Standard, 60% full | 512 MB RAM, ½ core, 2 GB disk | 72 | $180 | **$115** |
+| Starter · $1.50 | 256 MB, ¼ core, 1 GB disk | 240 | $360 | **$295** |
+| Standard · $2.50 | 512 MB, ½ core, 2 GB disk | 120 | $300 | **$235** |
+| Pro · $4.50 | 1 GB, 1 core, 5 GB disk | 60 | $270 | **$205** |
 
-One server pays for itself at around 26 Standard customers. Every server after that is the same math again, and Mechon is free. The dollar cost follows the euro exchange rate; taxes, payment fees, support time and backups are yours to add, and the prices are examples, so set your own.
+A server pays for itself at about 26 Standard customers. Taxes, payment fees and support are yours to add.
 
-## Status
+## Get started
 
-Every v0 milestone in [the spec](docs/spec-v0.md) is built and tested end to end, from the panel to a real bot running in its sandbox. It has not been run in production yet, and no release has been tagged, so treat it as a preview. Every decision behind it is in [the decision log](docs/decisions.md).
-
-- ✅ **Panel and sign-in.** One binary with the web UI built in, Postgres, admin and user roles, API keys.
-- ✅ **Plans, users and quotas.** Pools of bots, memory, CPU and disk per plan, per-customer overrides, enforced on the server.
-- ✅ **Nodes.** The agent dials out, reports capacity and converges on what the panel wants.
-- ✅ **Sandboxed bots.** Own container and Linux user, read-only root, no capabilities, cgroup limits, a disk image per bot, an egress firewall; twelve isolation attacks in the test suite all fail.
-- ✅ **Deploys.** Upload, git or API, install in a throwaway container, rollback, live console and metrics.
-- ✅ **For your billing system.** Operator API, signed webhooks with retries, audit log.
-- 🚧 **Next.** A CLI, agent templates (OpenClaw), the gVisor tier tested on real hosts, and the first tagged release.
-
-## How it works
-
-```
-  customers ──HTTPS──▶  mechon (panel)  ◀──WebSocket, dialed by the agent──  mechon-agent ──▶ Docker
-  your billing ──API──▶ • web UI + API                                       (one per server)  └ one sandbox per bot
-                        • Postgres
-```
-
-The panel holds the desired state of every bot. Each server runs an agent that connects out to the panel, receives the full description of the bots it should run, and makes reality match. Drop the connection or reboot the server and it heals itself on reconnect.
-
-## Try it
-
-Mechon is not packaged yet. To run the development build you need Go 1.25+, Node 22+ with pnpm, and Postgres 15+.
+Running it on a server: follow the [install guide](docs/install.md). Trying it locally needs Go, Node with pnpm, and Postgres:
 
 ```bash
 git clone https://github.com/jub0t/mechon && cd mechon
-createdb mechon_dev
-make web          # build the web UI so the binary can embed it
-make seed         # create a local admin: admin@mechon.test / dev-password-123
-make dev-panel    # API on :8080
-make dev-web      # UI with hot reload on :5173
+createdb mechon_dev && make web && make seed   # admin@mechon.test / dev-password-123
+make run                                       # then open http://localhost:8080
 ```
 
-Open http://localhost:5173 and sign in. Those credentials are for local development only. On a real install, create the first admin with `mechon init --email you@example.com`.
-
-To run Mechon on a real server, follow the [install guide](docs/install.md).
-
-<details>
-<summary><b>Configuration and tests</b></summary>
-
-| Variable | Meaning |
-|---|---|
-| `MECHON_DATABASE_URL` | Postgres connection string (required) |
-| `MECHON_PUBLIC_URL` | URL browsers use to reach the panel (required; sets the allowed origin and secure cookies) |
-| `MECHON_LISTEN` | Listen address, default `:8080` |
-| `MECHON_TRUST_PROXY` | `true` to take the client IP from `X-Forwarded-For` behind a reverse proxy |
-
-Tests: `createdb mechon_test && make test`. The Go integration tests run against a real Postgres and wipe that database on every run.
-
-</details>
+> [!WARNING]
+> Mechon is in **preview**. Every [milestone](docs/spec-v0.md#11-build-order) is built and tested end to end, including a suite of isolation attacks that must all fail, but it has not run in production yet. Next up: a CLI, AI agent templates and the first release.
 
 ## Contributing
 
-> [!IMPORTANT]
-> The most useful thing right now is to tell us what you need. Run a bot host, or want to? [Open an issue](https://github.com/jub0t/mechon/issues) with what your panel does badly today and what would make you switch.
->
-> Want to write code? Read [the spec](docs/spec-v0.md) first: it says what is being built, in what order, and why.
+Run a bot host, or want to? [Open an issue](https://github.com/jub0t/mechon/issues) with what your panel does badly today. Want to write code? The [spec](docs/spec-v0.md) and the [decision log](docs/decisions.md) explain what is being built and why.
 
 ## Star History
 
@@ -147,4 +92,4 @@ Tests: `createdb mechon_test && make test`. The Go integration tests run against
 
 ## License
 
-[MIT](LICENSE). Host it, modify it, sell hosting with it.
+[MIT](LICENSE). Host it, change it, sell hosting with it.

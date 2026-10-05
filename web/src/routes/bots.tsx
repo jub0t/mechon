@@ -22,8 +22,8 @@ import { bytes, cores, mb, pct } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export const templateTint: Record<string, string> = {
-  'discord-js': 'bg-[oklch(0.62_0.16_145/0.16)] text-[oklch(0.78_0.14_145)]',
-  'discord-py': 'bg-[oklch(0.65_0.13_245/0.18)] text-[oklch(0.8_0.1_245)]',
+  'discord-js': 'bg-[oklch(0.62_0.16_145/0.16)] text-[oklch(0.48_0.13_145)] dark:text-[oklch(0.78_0.14_145)]',
+  'discord-py': 'bg-[oklch(0.65_0.13_245/0.18)] text-[oklch(0.48_0.13_245)] dark:text-[oklch(0.8_0.1_245)]',
   bun: 'bg-orange-soft text-orange-text',
 }
 
@@ -279,8 +279,10 @@ function NewBotForm({ onDone }: { onDone: () => void }) {
                 )}
               >
                 <span className="block text-[15px] font-semibold">{s.label}</span>
-                <span className="mt-0.5 block font-mono text-[12px] text-muted-foreground">
-                  {mb(s.memoryMb)} · {cores(s.cpuMillicores)} · {mb(s.diskMb)}
+                <span className="mt-1 block font-mono text-[12px] leading-relaxed text-muted-foreground">
+                  {mb(s.memoryMb)} · {cores(s.cpuMillicores)}
+                  <br />
+                  {mb(s.diskMb)} disk
                 </span>
               </button>
             )

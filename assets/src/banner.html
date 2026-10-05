@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
-  Source for assets/banner.png (README hero and GitHub social preview, 1280x640).
-  Render: node assets/src/render.mjs  (needs Chrome and `pnpm install` in web/ for the fonts)
+  Source for assets/banner.png (GitHub social preview, 1280x640). The right side is a real
+  screenshot of the dashboard (shot.png, written by screens.sh). Render: node assets/src/render.mjs
 -->
 <html lang="en">
 <head>
@@ -33,15 +33,15 @@
   html, body { width: 1280px; height: 640px; overflow: hidden; background: var(--bg); color: var(--fg); font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 
   canvas { position: absolute; inset: 0; width: 100%; height: 100%;
-    -webkit-mask-image: radial-gradient(ellipse 70% 90% at 78% 50%, black 30%, transparent 80%); }
+    -webkit-mask-image: radial-gradient(ellipse 55% 60% at 22% 100%, black 10%, transparent 70%); opacity: 0.5; }
 
-  .wrap { position: relative; height: 100%; display: grid; grid-template-columns: 600px 1fr; align-items: center; padding: 0 64px; gap: 40px; }
+  .wrap { position: relative; height: 100%; display: grid; grid-template-columns: 540px; align-items: center; padding: 0 64px; }
 
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand svg { width: 40px; height: 40px; }
   .brand span { font-family: Bricolage; font-weight: 700; font-size: 26px; letter-spacing: -0.02em; }
 
-  h1 { margin-top: 34px; font-family: Bricolage; font-weight: 700; font-size: 66px; line-height: 0.96; letter-spacing: -0.035em; font-variation-settings: "opsz" 96; }
+  h1 { margin-top: 34px; font-family: Bricolage; font-weight: 700; font-size: 60px; line-height: 0.96; letter-spacing: -0.035em; font-variation-settings: "opsz" 96; }
   h1 em { font-style: normal; color: var(--brand-text); }
   p.lede { margin-top: 22px; font-size: 21px; line-height: 1.45; color: var(--muted); max-width: 34ch; }
 
@@ -49,33 +49,11 @@
   .chip { height: 34px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 14.5px; font-weight: 600; }
   .chip b { color: var(--fg); font-weight: 600; }
 
-  /* Right: the node, with three bots in their own lanes */
-  .node { position: relative; border-radius: 28px; padding: 22px;
-    background: color-mix(in oklab, var(--surface) 55%, transparent);
-    backdrop-filter: blur(24px) saturate(1.6);
-    box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.12), 0 30px 60px -30px oklch(0 0 0 / 0.8); }
-  .node-head { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 16px; }
-  .node-head .name { font-family: Bricolage; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
-  .node-head .meta { font-family: GeistMono; font-size: 12.5px; color: var(--faint); }
-
-  .lane { position: relative; display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 18px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
-  .lane + .lane { margin-top: 12px; }
-  /* dashed outline = the sandbox wall */
-  .lane::after { content: ""; position: absolute; inset: -5px; border-radius: 22px; border: 1.5px dashed oklch(0.62 0.22 300 / 0.35); pointer-events: none; }
-  .avatar { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; font-family: Bricolage; font-weight: 700; font-size: 17px; }
-  .lane .title { font-weight: 650; font-size: 16px; }
-  .lane .sub { margin-top: 3px; font-family: GeistMono; font-size: 12px; color: var(--faint); }
-  .bars { margin-top: 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .bar { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
-  .bar i { display: block; height: 100%; border-radius: 99px; background: var(--brand); }
-  .bar.cpu i { background: var(--faint); }
-  .state { height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; font-weight: 650; }
-  .state .dot { width: 8px; height: 8px; border-radius: 99px; background: currentColor; }
-  .running { background: var(--success-soft); color: var(--success); }
-  .installing { background: var(--orange-soft); color: var(--orange-text); }
-
-  .lock { position: absolute; right: -14px; top: -14px; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 999px; background: var(--brand); color: white; font-size: 12.5px; font-weight: 700; box-shadow: 0 10px 24px -10px oklch(0.62 0.22 300 / 0.8); }
-  .lock svg { width: 14px; height: 14px; }
+  /* Right: a real screenshot of the dashboard, bleeding off the right and bottom edges. */
+  .shot { position: absolute; left: 640px; top: 96px; width: 900px; height: 600px; border-radius: 22px; overflow: hidden;
+    box-shadow: 0 0 0 1px oklch(1 0 0 / 0.12), 0 40px 80px -30px oklch(0 0 0 / 0.9); }
+  /* Crop to the main content (the sidebar is 264px wide) so nothing is cut mid-word. */
+  .shot img { display: block; width: 1440px; transform-origin: 0 0; transform: scale(0.86) translate(-290px, -14px); }
 </style>
 </head>
 <body>
@@ -95,43 +73,7 @@
     </div>
   </div>
 
-  <div class="node">
-    <span class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Isolated</span>
-    <div class="node-head">
-      <span class="name">node-fra-1</span>
-      <span class="meta">3 bots · 1.1 / 8 GB</span>
-    </div>
-
-    <div class="lane">
-      <span class="avatar" style="background:var(--brand-soft);color:var(--brand-text)">T</span>
-      <div>
-        <div class="title">ticket-tool</div>
-        <div class="sub">discord.js · uid 100004 · 512 MB</div>
-        <div class="bars"><span class="bar"><i style="width:62%"></i></span><span class="bar cpu"><i style="width:18%"></i></span></div>
-      </div>
-      <span class="state running"><span class="dot"></span>Running</span>
-    </div>
-
-    <div class="lane">
-      <span class="avatar" style="background:var(--orange-soft);color:var(--orange-text)">M</span>
-      <div>
-        <div class="title">music-queue</div>
-        <div class="sub">discord.py · uid 100007 · 1 GB</div>
-        <div class="bars"><span class="bar"><i style="width:41%"></i></span><span class="bar cpu"><i style="width:47%"></i></span></div>
-      </div>
-      <span class="state running"><span class="dot"></span>Running</span>
-    </div>
-
-    <div class="lane">
-      <span class="avatar" style="background:var(--surface-2);color:var(--muted)">S</span>
-      <div>
-        <div class="title">starboard</div>
-        <div class="sub">bun · uid 100011 · 256 MB</div>
-        <div class="bars"><span class="bar"><i style="width:12%"></i></span><span class="bar cpu"><i style="width:6%"></i></span></div>
-      </div>
-      <span class="state installing"><span class="dot"></span>Installing</span>
-    </div>
-  </div>
+  <div class="shot"><img src="shot.png" alt="" /></div>
 </div>
 
 <script>
@@ -143,7 +85,7 @@
   const ctx = c.getContext('2d'); ctx.scale(dpr, dpr)
   const VIOLET = [139, 79, 232], GLINT = [233, 213, 255]
   const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))
-  const px = 980, py = 300, t = 5200
+  const px = 260, py = 600, t = 5200
   for (let r = 0; r < h / 27 + 1; r++) {
     const ox = r % 2 ? 6.5 : 0, y = r * 27
     for (let col = 0; col < w / 13 + 1; col++) {

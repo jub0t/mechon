@@ -8,3 +8,4 @@ web/dist/*
 web/*.tsbuildinfo
 web/node_modules/.tmp/
 /data/
+assets/src/shot.png
