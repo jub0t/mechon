@@ -152,6 +152,8 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    /* The app shell scrolls its own content; the page itself should never bounce. */
+    overscroll-behavior: none;
   }
 
   body {

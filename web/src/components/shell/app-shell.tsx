@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { Logo, Mark } from '@/components/brand/logo'
 import { Button } from '@/components/ui/button'
@@ -49,13 +49,20 @@ export function AppShell({ user }: { user: User }) {
   const items = navFor(user.role)
   const current = activeHref(items, pathname)
 
+  // The window never scrolls: the sidebar is pinned at full height and only <main> scrolls, so
+  // there is one scrollbar and no blank overscroll past the end of a page.
+  const scroller = useRef<HTMLElement>(null)
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 })
+  }, [pathname])
+
   return (
-    <div className="flex min-h-svh">
+    <div className="flex h-svh overflow-hidden">
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 76 : 264 }}
         transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 40 }}
-        className="sticky top-0 hidden h-svh shrink-0 flex-col overflow-hidden border-r bg-surface py-5 lg:flex"
+        className="hidden h-full shrink-0 flex-col overflow-hidden border-r bg-surface py-5 lg:flex"
         style={{ paddingInline: collapsed ? 14 : 16 }}
       >
         {collapsed ? (
@@ -165,9 +172,9 @@ export function AppShell({ user }: { user: User }) {
         </div>
       </motion.aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Mobile top bar and scrolling nav */}
-        <header className="sticky top-0 z-30 border-b bg-surface/85 backdrop-blur-xl lg:hidden">
+        <header className="z-30 shrink-0 border-b bg-surface lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
             <Link to="/" aria-label="Mechon home">
               <Logo />
@@ -205,7 +212,7 @@ export function AppShell({ user }: { user: User }) {
           </nav>
         </header>
 
-        <main className="flex-1 px-4 py-8 sm:px-8 lg:px-12 lg:py-12">
+        <main ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-8 sm:px-8 lg:px-12 lg:py-12">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
