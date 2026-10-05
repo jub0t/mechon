@@ -20,3 +20,9 @@ Newest last. Status is **Decided** (founder call), **Proposed** (in the spec, aw
 | 2026-10-04 | License: MIT | Decided |
 | 2026-10-04 | Disk quotas: one fixed-size disk-image file per bot, loop-mounted as its volume (works on any filesystem). XFS project quotas may come later as a faster option | Decided |
 | 2026-10-04 | One Linux UID per bot (`100000 + bots.uid_seq`), so a container escape still cannot read other bots' files | Decided |
+| 2026-10-04 | The agent talks to the Docker Engine API directly over the unix socket with net/http (API v1.44, ~14 endpoints, its own log demux) instead of the Moby client, to keep the agent small | Decided |
+| 2026-10-04 | Install containers run on `mechon0` too, so customer install scripts (npm postinstall etc.) are under the same egress firewall as the bot | Decided |
+| 2026-10-04 | Bots use public DNS resolvers (`MECHON_DNS`, default 1.1.1.1 and 8.8.8.8) so blocking private ranges does not break DNS; a private resolver gets a port-53-only hole | Decided |
+| 2026-10-04 | Bot containers also get `Init: true` (tini), `IpcMode: private` and `nodev` on /tmp; the firewall additionally drops 0/8, 127/8, multicast, 240/4 and 198.18/15 | Decided |
+| 2026-10-04 | Disk images grow online (`truncate`, `losetup -c`, `resize2fs`); shrinking is refused | Decided |
+| 2026-10-04 | River is deferred until webhooks: desired-state reconciliation makes deploy dispatch durable without a job queue | Decided |
