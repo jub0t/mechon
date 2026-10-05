@@ -28,7 +28,8 @@ ORDER BY bots.created_at DESC;
 
 -- Everything the panel needs to build the specs for one node's sync.
 -- name: ListNodeBotSpecs :many
-SELECT sqlc.embed(bots), plans.pids_max, plans.hardened, subscriptions.status AS subscription_status,
+SELECT sqlc.embed(bots), coalesce(subscriptions.pids_max, plans.pids_max)::int AS pids_max, plans.hardened,
+       subscriptions.status AS subscription_status,
        (users.suspended_at IS NOT NULL)::bool AS owner_suspended, deploys.artifact_sha256
 FROM bots
 JOIN subscriptions ON subscriptions.id = bots.subscription_id
@@ -38,7 +39,8 @@ LEFT JOIN deploys ON deploys.id = bots.current_deploy_id
 WHERE bots.node_id = $1 AND bots.deleted_at IS NULL;
 
 -- name: GetBotSpec :one
-SELECT sqlc.embed(bots), plans.pids_max, plans.hardened, subscriptions.status AS subscription_status,
+SELECT sqlc.embed(bots), coalesce(subscriptions.pids_max, plans.pids_max)::int AS pids_max, plans.hardened,
+       subscriptions.status AS subscription_status,
        (users.suspended_at IS NOT NULL)::bool AS owner_suspended, deploys.artifact_sha256
 FROM bots
 JOIN subscriptions ON subscriptions.id = bots.subscription_id

@@ -137,10 +137,10 @@ const sizes = [
 
 function room(sub: Subscription) {
   return {
-    bots: sub.plan.maxBots - sub.used.bots,
-    memoryMb: sub.plan.memoryMb - sub.used.memoryMb,
-    cpuMillicores: sub.plan.cpuMillicores - sub.used.cpuMillicores,
-    diskMb: sub.plan.diskMb - sub.used.diskMb,
+    bots: sub.limits.maxBots - sub.used.bots,
+    memoryMb: sub.limits.memoryMb - sub.used.memoryMb,
+    cpuMillicores: sub.limits.cpuMillicores - sub.used.cpuMillicores,
+    diskMb: sub.limits.diskMb - sub.used.diskMb,
   }
 }
 
@@ -246,7 +246,7 @@ function NewBotForm({ onDone }: { onDone: () => void }) {
             <SelectContent>
               {active.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.plan.name} · {s.plan.maxBots - s.used.bots} of {s.plan.maxBots} bots free
+                  {s.plan.name} · {s.limits.maxBots - s.used.bots} of {s.limits.maxBots} bots free
                 </SelectItem>
               ))}
             </SelectContent>

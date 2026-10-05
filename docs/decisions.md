@@ -26,3 +26,4 @@ Newest last. Status is **Decided** (founder call), **Proposed** (in the spec, aw
 | 2026-10-04 | Bot containers also get `Init: true` (tini), `IpcMode: private` and `nodev` on /tmp; the firewall additionally drops 0/8, 127/8, multicast, 240/4 and 198.18/15 | Decided |
 | 2026-10-04 | Disk images grow online (`truncate`, `losetup -c`, `resize2fs`); shrinking is refused | Decided |
 | 2026-10-04 | River is deferred until webhooks: desired-state reconciliation makes deploy dispatch durable without a job queue | Decided |
+| 2026-10-04 | Admins can override any plan limit (bots, memory, CPU, disk, processes) for one customer's subscription, with a note; empty means "use the plan" | Decided (founder) |

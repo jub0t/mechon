@@ -74,11 +74,18 @@ export type PlanInput = Omit<Plan, 'id' | 'subscriptionCount' | 'createdAt'>
 
 export type SubscriptionStatus = 'active' | 'suspended' | 'terminated'
 
+export type Limits = Capacity & { maxBots: number; pidsMax: number }
+export type Overrides = { [K in keyof Limits]: number | null }
+
 export type Subscription = {
   id: string
   status: SubscriptionStatus
   externalId: string | null
   plan: Plan
+  /** The plan with this customer's overrides applied. */
+  limits: Limits
+  overrides: Overrides
+  note: string
   used: Capacity & { bots: number }
   createdAt: string
 }
@@ -229,7 +236,7 @@ export const api = {
   suspendUser: (id: string, suspended: boolean) => post<User>(`/users/${id}/suspend`, { suspended }),
   userSubscriptions: (id: string) => get<Subscription[]>(`/users/${id}/subscriptions`),
   subscribe: (userId: string, planId: string) => post<{ id: string }>(`/users/${userId}/subscriptions`, { planId }),
-  updateSubscription: (id: string, b: { status?: SubscriptionStatus; planId?: string }) => patch<unknown>(`/subscriptions/${id}`, b),
+  updateSubscription: (id: string, b: { status?: SubscriptionStatus; planId?: string; overrides?: Partial<Overrides>; note?: string }) => patch<unknown>(`/subscriptions/${id}`, b),
 
   nodes: () => get<Node[]>('/nodes'),
   createNode: (b: NodeInput) => post<{ node: Node; setup: AgentSetup }>('/nodes', b),

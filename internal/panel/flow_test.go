@@ -491,3 +491,46 @@ func waitFor(t *testing.T, ok func() bool) {
 func itoaT(n int) string { return strings.TrimSpace(strings.Repeat(" ", 0) + jsonNum(n)) }
 
 func jsonNum(n int) string { b, _ := json.Marshal(n); return string(b) }
+
+func TestSubscriptionOverrides(t *testing.T) {
+	ts, q := testServer(t)
+	createUser(t, q, "admin@example.com", "a-long-password", db.UserRoleAdmin)
+	admin := signIn(t, ts, "admin@example.com", "a-long-password")
+	plan := mustDo(t, admin, ts, 201, "POST", "/api/v1/plans", `{"slug":"tiny","name":"Tiny","maxBots":1,"memoryMb":256,"cpuMillicores":250,"diskMb":512}`)
+	mustDo(t, admin, ts, 201, "POST", "/api/v1/users", `{"email":"c@example.com","name":"Carol","password":"carol-password","planId":"`+plan["id"].(string)+`"}`)
+	node := mustDo(t, admin, ts, 201, "POST", "/api/v1/nodes", `{"name":"n1","memoryMb":8192,"cpuMillicores":8000,"diskMb":40960}`)
+	agent := connectAgent(t, ts, node["setup"].(map[string]any)["token"].(string))
+	agent.next(proto.TypeSync)
+
+	carol := signIn(t, ts, "c@example.com", "carol-password")
+	subID := doList(t, carol, ts, "/api/v1/me/subscriptions")[0]["id"].(string)
+	big := `{"subscriptionId":"` + subID + `","name":"big","template":"bun","memoryMb":1024,"cpuMillicores":250,"diskMb":512,"env":{"DISCORD_TOKEN":"t"}}`
+	if code, b := do(t, carol, ts, "POST", "/api/v1/bots", big); code != 409 || errCode(b) != "quota" {
+		t.Fatalf("1 GB bot on a 256 MB plan: %d %v", code, b)
+	}
+
+	// The admin gives Carol more memory and a higher process limit than the plan.
+	mustDo(t, admin, ts, 200, "PATCH", "/api/v1/subscriptions/"+subID, `{"overrides":{"memoryMb":2048,"pidsMax":512},"note":"beta tester"}`)
+	sub := doList(t, carol, ts, "/api/v1/me/subscriptions")[0]
+	limits := sub["limits"].(map[string]any)
+	if limits["memoryMb"] != float64(2048) || limits["maxBots"] != float64(1) || sub["note"] != "beta tester" {
+		t.Fatalf("effective limits: %v note %v", limits, sub["note"])
+	}
+	mustDo(t, carol, ts, 201, "POST", "/api/v1/bots", big)
+	if spec := specOf(t, agent.next(proto.TypeBotApply)); spec.Limits.Pids != 512 {
+		t.Fatalf("pids override not in the spec: %d", spec.Limits.Pids)
+	}
+
+	// Bad overrides are refused, and clearing them goes back to the plan.
+	if code, _ := do(t, admin, ts, "PATCH", "/api/v1/subscriptions/"+subID, `{"overrides":{"memoryMb":1}}`); code != 400 {
+		t.Fatalf("1 MB override accepted: %d", code)
+	}
+	mustDo(t, admin, ts, 200, "PATCH", "/api/v1/subscriptions/"+subID, `{"overrides":{}}`)
+	if l := doList(t, carol, ts, "/api/v1/me/subscriptions")[0]["limits"].(map[string]any); l["memoryMb"] != float64(256) {
+		t.Fatalf("cleared override: %v", l)
+	}
+	// Users cannot change their own limits.
+	if code, _ := do(t, carol, ts, "PATCH", "/api/v1/subscriptions/"+subID, `{"overrides":{"memoryMb":99999}}`); code != 403 {
+		t.Fatalf("user changed their own limits: %d", code)
+	}
+}

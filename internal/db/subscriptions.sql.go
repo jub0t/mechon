@@ -12,7 +12,7 @@ import (
 )
 
 const createSubscription = `-- name: CreateSubscription :one
-INSERT INTO subscriptions (user_id, plan_id, external_id) VALUES ($1, $2, $3) RETURNING id, user_id, plan_id, status, external_id, created_at
+INSERT INTO subscriptions (user_id, plan_id, external_id) VALUES ($1, $2, $3) RETURNING id, user_id, plan_id, status, external_id, created_at, max_bots, memory_mb, cpu_millicores, disk_mb, pids_max, note
 `
 
 type CreateSubscriptionParams struct {
@@ -31,12 +31,18 @@ func (q *Queries) CreateSubscription(ctx context.Context, arg CreateSubscription
 		&i.Status,
 		&i.ExternalID,
 		&i.CreatedAt,
+		&i.MaxBots,
+		&i.MemoryMb,
+		&i.CpuMillicores,
+		&i.DiskMb,
+		&i.PidsMax,
+		&i.Note,
 	)
 	return i, err
 }
 
 const getSubscription = `-- name: GetSubscription :one
-SELECT id, user_id, plan_id, status, external_id, created_at FROM subscriptions WHERE id = $1
+SELECT id, user_id, plan_id, status, external_id, created_at, max_bots, memory_mb, cpu_millicores, disk_mb, pids_max, note FROM subscriptions WHERE id = $1
 `
 
 func (q *Queries) GetSubscription(ctx context.Context, id uuid.UUID) (Subscription, error) {
@@ -49,12 +55,18 @@ func (q *Queries) GetSubscription(ctx context.Context, id uuid.UUID) (Subscripti
 		&i.Status,
 		&i.ExternalID,
 		&i.CreatedAt,
+		&i.MaxBots,
+		&i.MemoryMb,
+		&i.CpuMillicores,
+		&i.DiskMb,
+		&i.PidsMax,
+		&i.Note,
 	)
 	return i, err
 }
 
 const getSubscriptionForUpdate = `-- name: GetSubscriptionForUpdate :one
-SELECT id, user_id, plan_id, status, external_id, created_at FROM subscriptions WHERE id = $1 FOR UPDATE
+SELECT id, user_id, plan_id, status, external_id, created_at, max_bots, memory_mb, cpu_millicores, disk_mb, pids_max, note FROM subscriptions WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetSubscriptionForUpdate(ctx context.Context, id uuid.UUID) (Subscription, error) {
@@ -67,12 +79,18 @@ func (q *Queries) GetSubscriptionForUpdate(ctx context.Context, id uuid.UUID) (S
 		&i.Status,
 		&i.ExternalID,
 		&i.CreatedAt,
+		&i.MaxBots,
+		&i.MemoryMb,
+		&i.CpuMillicores,
+		&i.DiskMb,
+		&i.PidsMax,
+		&i.Note,
 	)
 	return i, err
 }
 
 const listSubscriptionsForUser = `-- name: ListSubscriptionsForUser :many
-SELECT subscriptions.id, subscriptions.user_id, subscriptions.plan_id, subscriptions.status, subscriptions.external_id, subscriptions.created_at, plans.id, plans.slug, plans.name, plans.max_bots, plans.memory_mb, plans.cpu_millicores, plans.disk_mb, plans.pids_max, plans.hardened, plans.templates, plans.archived_at, plans.created_at,
+SELECT subscriptions.id, subscriptions.user_id, subscriptions.plan_id, subscriptions.status, subscriptions.external_id, subscriptions.created_at, subscriptions.max_bots, subscriptions.memory_mb, subscriptions.cpu_millicores, subscriptions.disk_mb, subscriptions.pids_max, subscriptions.note, plans.id, plans.slug, plans.name, plans.max_bots, plans.memory_mb, plans.cpu_millicores, plans.disk_mb, plans.pids_max, plans.hardened, plans.templates, plans.archived_at, plans.created_at,
        coalesce(sum(b.memory_mb) FILTER (WHERE b.id IS NOT NULL), 0)::int      AS used_memory_mb,
        coalesce(sum(b.cpu_millicores) FILTER (WHERE b.id IS NOT NULL), 0)::int AS used_cpu_millicores,
        coalesce(sum(b.disk_mb) FILTER (WHERE b.id IS NOT NULL), 0)::int        AS used_disk_mb,
@@ -110,6 +128,12 @@ func (q *Queries) ListSubscriptionsForUser(ctx context.Context, userID uuid.UUID
 			&i.Subscription.Status,
 			&i.Subscription.ExternalID,
 			&i.Subscription.CreatedAt,
+			&i.Subscription.MaxBots,
+			&i.Subscription.MemoryMb,
+			&i.Subscription.CpuMillicores,
+			&i.Subscription.DiskMb,
+			&i.Subscription.PidsMax,
+			&i.Subscription.Note,
 			&i.Plan.ID,
 			&i.Plan.Slug,
 			&i.Plan.Name,
@@ -137,8 +161,53 @@ func (q *Queries) ListSubscriptionsForUser(ctx context.Context, userID uuid.UUID
 	return items, nil
 }
 
+const setSubscriptionOverrides = `-- name: SetSubscriptionOverrides :one
+UPDATE subscriptions
+SET max_bots = $2, memory_mb = $3, cpu_millicores = $4, disk_mb = $5, pids_max = $6, note = $7
+WHERE id = $1
+RETURNING id, user_id, plan_id, status, external_id, created_at, max_bots, memory_mb, cpu_millicores, disk_mb, pids_max, note
+`
+
+type SetSubscriptionOverridesParams struct {
+	ID            uuid.UUID
+	MaxBots       *int32
+	MemoryMb      *int32
+	CpuMillicores *int32
+	DiskMb        *int32
+	PidsMax       *int32
+	Note          string
+}
+
+func (q *Queries) SetSubscriptionOverrides(ctx context.Context, arg SetSubscriptionOverridesParams) (Subscription, error) {
+	row := q.db.QueryRow(ctx, setSubscriptionOverrides,
+		arg.ID,
+		arg.MaxBots,
+		arg.MemoryMb,
+		arg.CpuMillicores,
+		arg.DiskMb,
+		arg.PidsMax,
+		arg.Note,
+	)
+	var i Subscription
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanID,
+		&i.Status,
+		&i.ExternalID,
+		&i.CreatedAt,
+		&i.MaxBots,
+		&i.MemoryMb,
+		&i.CpuMillicores,
+		&i.DiskMb,
+		&i.PidsMax,
+		&i.Note,
+	)
+	return i, err
+}
+
 const setSubscriptionPlan = `-- name: SetSubscriptionPlan :one
-UPDATE subscriptions SET plan_id = $2 WHERE id = $1 RETURNING id, user_id, plan_id, status, external_id, created_at
+UPDATE subscriptions SET plan_id = $2 WHERE id = $1 RETURNING id, user_id, plan_id, status, external_id, created_at, max_bots, memory_mb, cpu_millicores, disk_mb, pids_max, note
 `
 
 type SetSubscriptionPlanParams struct {
@@ -156,12 +225,18 @@ func (q *Queries) SetSubscriptionPlan(ctx context.Context, arg SetSubscriptionPl
 		&i.Status,
 		&i.ExternalID,
 		&i.CreatedAt,
+		&i.MaxBots,
+		&i.MemoryMb,
+		&i.CpuMillicores,
+		&i.DiskMb,
+		&i.PidsMax,
+		&i.Note,
 	)
 	return i, err
 }
 
 const setSubscriptionStatus = `-- name: SetSubscriptionStatus :one
-UPDATE subscriptions SET status = $2 WHERE id = $1 RETURNING id, user_id, plan_id, status, external_id, created_at
+UPDATE subscriptions SET status = $2 WHERE id = $1 RETURNING id, user_id, plan_id, status, external_id, created_at, max_bots, memory_mb, cpu_millicores, disk_mb, pids_max, note
 `
 
 type SetSubscriptionStatusParams struct {
@@ -179,6 +254,12 @@ func (q *Queries) SetSubscriptionStatus(ctx context.Context, arg SetSubscription
 		&i.Status,
 		&i.ExternalID,
 		&i.CreatedAt,
+		&i.MaxBots,
+		&i.MemoryMb,
+		&i.CpuMillicores,
+		&i.DiskMb,
+		&i.PidsMax,
+		&i.Note,
 	)
 	return i, err
 }

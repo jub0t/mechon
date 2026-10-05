@@ -436,8 +436,59 @@ type subscriptionJSON struct {
 	Status     db.SubscriptionStatus `json:"status"`
 	ExternalID *string               `json:"externalId"`
 	Plan       planJSON              `json:"plan"`
+	Limits     limitsJSON            `json:"limits"`    // the plan with this customer's overrides applied
+	Overrides  overridesJSON         `json:"overrides"` // null fields use the plan
+	Note       string                `json:"note"`
 	Used       usageJSON             `json:"used"`
 	CreatedAt  time.Time             `json:"createdAt"`
+}
+
+type limitsJSON struct {
+	MaxBots       int32 `json:"maxBots"`
+	MemoryMB      int32 `json:"memoryMb"`
+	CPUMillicores int32 `json:"cpuMillicores"`
+	DiskMB        int32 `json:"diskMb"`
+	PidsMax       int32 `json:"pidsMax"`
+}
+
+type overridesJSON struct {
+	MaxBots       *int32 `json:"maxBots"`
+	MemoryMB      *int32 `json:"memoryMb"`
+	CPUMillicores *int32 `json:"cpuMillicores"`
+	DiskMB        *int32 `json:"diskMb"`
+	PidsMax       *int32 `json:"pidsMax"`
+}
+
+func (o overridesJSON) validate() error {
+	check := func(v *int32, min, max int32, what string) error {
+		if v != nil && (*v < min || *v > max) {
+			return errBadRequest(what)
+		}
+		return nil
+	}
+	return errors.Join(
+		check(o.MaxBots, 1, 1000, "Bots must be between 1 and 1000."),
+		check(o.MemoryMB, 64, 1<<20, "Memory must be at least 64 MB."),
+		check(o.CPUMillicores, 50, 1<<20, "CPU must be at least 0.05 cores."),
+		check(o.DiskMB, 128, 1<<24, "Disk must be at least 128 MB."),
+		check(o.PidsMax, 16, 4096, "Process limit must be between 16 and 4096."),
+	)
+}
+
+// effectivePlan applies a subscription's per-customer overrides to its plan.
+func effectivePlan(sub db.Subscription, p db.Plan) db.Plan {
+	pick := func(o *int32, v int32) int32 {
+		if o != nil {
+			return *o
+		}
+		return v
+	}
+	p.MaxBots = pick(sub.MaxBots, p.MaxBots)
+	p.MemoryMb = pick(sub.MemoryMb, p.MemoryMb)
+	p.CpuMillicores = pick(sub.CpuMillicores, p.CpuMillicores)
+	p.DiskMb = pick(sub.DiskMb, p.DiskMb)
+	p.PidsMax = pick(sub.PidsMax, p.PidsMax)
+	return p
 }
 
 type usageJSON struct {
@@ -454,9 +505,14 @@ func (s *Server) subscriptionsFor(ctx context.Context, userID uuid.UUID) ([]subs
 	}
 	out := make([]subscriptionJSON, 0, len(rows))
 	for _, r := range rows {
+		eff := effectivePlan(r.Subscription, r.Plan)
+		sub := r.Subscription
 		out = append(out, subscriptionJSON{
-			ID: r.Subscription.ID, Status: r.Subscription.Status, ExternalID: r.Subscription.ExternalID,
+			ID: sub.ID, Status: sub.Status, ExternalID: sub.ExternalID,
 			Plan:      toPlanJSON(r.Plan, 0),
+			Limits:    limitsJSON{eff.MaxBots, eff.MemoryMb, eff.CpuMillicores, eff.DiskMb, eff.PidsMax},
+			Overrides: overridesJSON{sub.MaxBots, sub.MemoryMb, sub.CpuMillicores, sub.DiskMb, sub.PidsMax},
+			Note:      sub.Note,
 			Used:      usageJSON{Bots: r.UsedBots, MemoryMB: r.UsedMemoryMb, CPUMillicores: r.UsedCpuMillicores, DiskMB: r.UsedDiskMb},
 			CreatedAt: r.Subscription.CreatedAt,
 		})
@@ -541,8 +597,10 @@ func (s *Server) updateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Status *db.SubscriptionStatus `json:"status"`
-		PlanID *uuid.UUID             `json:"planId"`
+		Status    *db.SubscriptionStatus `json:"status"`
+		PlanID    *uuid.UUID             `json:"planId"`
+		Overrides *overridesJSON         `json:"overrides"` // replaces all overrides; null fields use the plan
+		Note      *string                `json:"note"`
 	}
 	if err := decode(w, r, &in); err != nil {
 		writeError(w, r, err)
@@ -565,6 +623,25 @@ func (s *Server) updateSubscription(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if sub, err = s.q.SetSubscriptionPlan(ctx, db.SetSubscriptionPlanParams{ID: id, PlanID: *in.PlanID}); err != nil {
+			writeError(w, r, err)
+			return
+		}
+	}
+	if in.Overrides != nil || in.Note != nil {
+		o := overridesJSON{sub.MaxBots, sub.MemoryMb, sub.CpuMillicores, sub.DiskMb, sub.PidsMax}
+		if in.Overrides != nil {
+			o = *in.Overrides
+		}
+		if err := o.validate(); err != nil {
+			writeError(w, r, err)
+			return
+		}
+		note := sub.Note
+		if in.Note != nil {
+			note = truncate(strings.TrimSpace(*in.Note), 500)
+		}
+		if sub, err = s.q.SetSubscriptionOverrides(ctx, db.SetSubscriptionOverridesParams{ID: id, MaxBots: o.MaxBots, MemoryMb: o.MemoryMB,
+			CpuMillicores: o.CPUMillicores, DiskMb: o.DiskMB, PidsMax: o.PidsMax, Note: note}); err != nil {
 			writeError(w, r, err)
 			return
 		}

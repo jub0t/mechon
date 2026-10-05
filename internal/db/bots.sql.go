@@ -149,7 +149,8 @@ func (q *Queries) GetBot(ctx context.Context, id uuid.UUID) (GetBotRow, error) {
 }
 
 const getBotSpec = `-- name: GetBotSpec :one
-SELECT bots.id, bots.uid_seq, bots.subscription_id, bots.node_id, bots.name, bots.template, bots.memory_mb, bots.cpu_millicores, bots.disk_mb, bots.desired_state, bots.observed_state, bots.observed_error, bots.exit_code, bots.current_deploy_id, bots.restart_count, bots.state_changed_at, bots.created_at, bots.deleted_at, plans.pids_max, plans.hardened, subscriptions.status AS subscription_status,
+SELECT bots.id, bots.uid_seq, bots.subscription_id, bots.node_id, bots.name, bots.template, bots.memory_mb, bots.cpu_millicores, bots.disk_mb, bots.desired_state, bots.observed_state, bots.observed_error, bots.exit_code, bots.current_deploy_id, bots.restart_count, bots.state_changed_at, bots.created_at, bots.deleted_at, coalesce(subscriptions.pids_max, plans.pids_max)::int AS pids_max, plans.hardened,
+       subscriptions.status AS subscription_status,
        (users.suspended_at IS NOT NULL)::bool AS owner_suspended, deploys.artifact_sha256
 FROM bots
 JOIN subscriptions ON subscriptions.id = bots.subscription_id
@@ -266,7 +267,8 @@ func (q *Queries) ListBots(ctx context.Context, ownerID *uuid.UUID) ([]ListBotsR
 }
 
 const listNodeBotSpecs = `-- name: ListNodeBotSpecs :many
-SELECT bots.id, bots.uid_seq, bots.subscription_id, bots.node_id, bots.name, bots.template, bots.memory_mb, bots.cpu_millicores, bots.disk_mb, bots.desired_state, bots.observed_state, bots.observed_error, bots.exit_code, bots.current_deploy_id, bots.restart_count, bots.state_changed_at, bots.created_at, bots.deleted_at, plans.pids_max, plans.hardened, subscriptions.status AS subscription_status,
+SELECT bots.id, bots.uid_seq, bots.subscription_id, bots.node_id, bots.name, bots.template, bots.memory_mb, bots.cpu_millicores, bots.disk_mb, bots.desired_state, bots.observed_state, bots.observed_error, bots.exit_code, bots.current_deploy_id, bots.restart_count, bots.state_changed_at, bots.created_at, bots.deleted_at, coalesce(subscriptions.pids_max, plans.pids_max)::int AS pids_max, plans.hardened,
+       subscriptions.status AS subscription_status,
        (users.suspended_at IS NOT NULL)::bool AS owner_suspended, deploys.artifact_sha256
 FROM bots
 JOIN subscriptions ON subscriptions.id = bots.subscription_id

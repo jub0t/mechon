@@ -33,3 +33,9 @@ UPDATE subscriptions SET status = $2 WHERE id = $1 RETURNING *;
 
 -- name: SetSubscriptionPlan :one
 UPDATE subscriptions SET plan_id = $2 WHERE id = $1 RETURNING *;
+
+-- name: SetSubscriptionOverrides :one
+UPDATE subscriptions
+SET max_bots = $2, memory_mb = $3, cpu_millicores = $4, disk_mb = $5, pids_max = $6, note = $7
+WHERE id = $1
+RETURNING *;

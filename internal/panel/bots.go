@@ -219,6 +219,7 @@ func (s *Server) createBot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	plan = effectivePlan(sub, plan)
 	if len(plan.Templates) > 0 && !slices.Contains(plan.Templates, tpl.ID) {
 		writeError(w, r, errBadRequest("Your plan does not include the "+tpl.Name+" template."))
 		return
@@ -326,7 +327,7 @@ func (s *Server) updateBot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
-	if err := checkQuota(ctx, q, sub, plan, in.sizeInput, row.Bot.ID, false); err != nil {
+	if err := checkQuota(ctx, q, sub, effectivePlan(sub, plan), in.sizeInput, row.Bot.ID, false); err != nil {
 		writeError(w, r, err)
 		return
 	}

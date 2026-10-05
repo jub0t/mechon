@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, KeyRound, Layers, MoreHorizontal, Plus, ShieldCheck, Trash2, UserRound, Users as UsersIcon } from 'lucide-react'
+import { Ban, KeyRound, Layers, MoreHorizontal, Plus, ShieldCheck, SlidersHorizontal, Trash2, UserRound, Users as UsersIcon } from 'lucide-react'
 import { type FormEvent, useCallback, useState } from 'react'
 import { useNewParam } from '@/hooks/use-new-param'
 import { toast } from 'sonner'
@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { type AdminUser, api, type Role } from '@/lib/api'
+import { type AdminUser, api, type Limits, type Role, type Subscription } from '@/lib/api'
 import { useMe } from '@/lib/auth'
 import { ago, cores, mb } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -319,35 +319,12 @@ function UserPlans({ user }: { user: AdminUser }) {
     <div className="space-y-5">
       <DialogHeader>
         <DialogTitle className="font-display text-[22px] font-bold tracking-[-0.015em]">{user.name}'s plans</DialogTitle>
-        <DialogDescription>Suspending a plan stops its bots. Terminating deletes them.</DialogDescription>
+        <DialogDescription>Customize limits for this customer only, suspend a plan to stop its bots, or terminate it to delete them.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
         {subs.data?.length === 0 && <p className="rounded-[14px] bg-surface-2 px-4 py-6 text-center text-[14px] text-muted-foreground">No plans yet.</p>}
         {subs.data?.map((s) => (
-          <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-[16px] border px-4 py-3.5">
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">{s.plan.name}</p>
-              <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">
-                {s.used.bots}/{s.plan.maxBots} bots · {mb(s.used.memoryMb)}/{mb(s.plan.memoryMb)} · {cores(s.used.cpuMillicores)}/{cores(s.plan.cpuMillicores)}
-              </p>
-            </div>
-            {s.status === 'active' ? <Pill tone="success">Active</Pill> : <Pill tone="orange">Suspended</Pill>}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Plan actions">
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-[14px] p-1.5">
-                <DropdownMenuItem className="rounded-[10px]" onSelect={() => status.mutate({ id: s.id, s: s.status === 'active' ? 'suspended' : 'active' })}>
-                  {s.status === 'active' ? 'Suspend' : 'Reactivate'}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-[10px]" variant="destructive" onSelect={() => status.mutate({ id: s.id, s: 'terminated' })}>
-                  Terminate and delete bots
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <SubscriptionRow key={s.id} sub={s} onStatus={(st) => status.mutate({ id: s.id, s: st })} onSaved={refresh} />
         ))}
       </div>
       <form
@@ -374,6 +351,119 @@ function UserPlans({ user }: { user: AdminUser }) {
         </Button>
       </form>
       <FormError error={add.error} />
+    </div>
+  )
+}
+
+const limitFields: { key: keyof Limits; label: string; unit?: 'cores' }[] = [
+  { key: 'maxBots', label: 'Bots' },
+  { key: 'memoryMb', label: 'Memory (MB)' },
+  { key: 'cpuMillicores', label: 'CPU (cores)', unit: 'cores' },
+  { key: 'diskMb', label: 'Disk (MB)' },
+  { key: 'pidsMax', label: 'Processes per bot' },
+]
+
+function SubscriptionRow({ sub: s, onStatus, onSaved }: { sub: Subscription; onStatus: (st: 'active' | 'suspended' | 'terminated') => void; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const custom = Object.values(s.overrides).some((v) => v != null)
+  const toInput = (k: keyof Limits) => {
+    const v = s.overrides[k]
+    if (v == null) return ''
+    return String(k === 'cpuMillicores' ? v / 1000 : v)
+  }
+  const [vals, setVals] = useState<Record<keyof Limits, string>>(() => Object.fromEntries(limitFields.map((f) => [f.key, toInput(f.key)])) as Record<keyof Limits, string>)
+  const [note, setNote] = useState(s.note)
+  const save = useMutation({
+    mutationFn: () => {
+      const overrides = Object.fromEntries(
+        limitFields.map((f) => {
+          const raw = vals[f.key].trim()
+          if (raw === '') return [f.key, null]
+          const n = Number(raw)
+          return [f.key, f.unit === 'cores' ? Math.round(n * 1000) : Math.round(n)]
+        }),
+      )
+      return api.updateSubscription(s.id, { overrides, note })
+    },
+    onSuccess: () => {
+      setEditing(false)
+      onSaved()
+      toast.success('Limits saved')
+    },
+  })
+  return (
+    <div className="rounded-[16px] border">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 font-semibold">
+            {s.plan.name}
+            {custom && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11.5px] font-semibold text-brand-text">Custom</span>}
+          </p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">
+            {s.used.bots}/{s.limits.maxBots} bots · {mb(s.used.memoryMb)}/{mb(s.limits.memoryMb)} · {cores(s.used.cpuMillicores)}/{cores(s.limits.cpuMillicores)} · {mb(s.used.diskMb)}/{mb(s.limits.diskMb)}
+          </p>
+          {s.note && <p className="mt-1 text-[12.5px] text-faint-foreground italic">{s.note}</p>}
+        </div>
+        {s.status === 'active' ? <Pill tone="success">Active</Pill> : <Pill tone="orange">Suspended</Pill>}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Plan actions">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-[14px] p-1.5">
+            <DropdownMenuItem className="rounded-[10px]" onSelect={() => setEditing(true)}>
+              <SlidersHorizontal /> Customize limits
+            </DropdownMenuItem>
+            <DropdownMenuItem className="rounded-[10px]" onSelect={() => onStatus(s.status === 'active' ? 'suspended' : 'active')}>
+              {s.status === 'active' ? 'Suspend' : 'Reactivate'}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="rounded-[10px]" variant="destructive" onSelect={() => onStatus('terminated')}>
+              Terminate and delete bots
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {editing && (
+        <form
+          className="space-y-4 border-t bg-surface-2/40 px-4 py-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            save.mutate()
+          }}
+        >
+          <p className="text-[13px] text-muted-foreground">Only for this customer. Leave a field empty to use the {s.plan.name} plan's value, shown faded.</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {limitFields.map((f) => (
+              <Field key={f.key} label={f.label} htmlFor={`ov-${s.id}-${f.key}`}>
+                <Input
+                  id={`ov-${s.id}-${f.key}`}
+                  type="number"
+                  step={f.unit === 'cores' ? 0.05 : 1}
+                  value={vals[f.key]}
+                  placeholder={String(f.unit === 'cores' ? s.plan[f.key] / 1000 : s.plan[f.key])}
+                  onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
+                />
+              </Field>
+            ))}
+            <Field label="Note for admins" htmlFor={`ov-${s.id}-note`}>
+              <Input id={`ov-${s.id}-note`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why this customer is different" />
+            </Field>
+          </div>
+          <FormError error={save.error} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVals(Object.fromEntries(limitFields.map((f) => [f.key, ''])) as Record<keyof Limits, string>)}>
+              Reset to plan
+            </Button>
+            <Button type="submit" size="sm" disabled={save.isPending}>
+              Save limits
+            </Button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }

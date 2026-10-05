@@ -387,12 +387,18 @@ type Session struct {
 }
 
 type Subscription struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	PlanID     uuid.UUID
-	Status     SubscriptionStatus
-	ExternalID *string
-	CreatedAt  time.Time
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	PlanID        uuid.UUID
+	Status        SubscriptionStatus
+	ExternalID    *string
+	CreatedAt     time.Time
+	MaxBots       *int32
+	MemoryMb      *int32
+	CpuMillicores *int32
+	DiskMb        *int32
+	PidsMax       *int32
+	Note          string
 }
 
 type User struct {
