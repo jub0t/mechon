@@ -11,7 +11,7 @@
   </tr>
 </table>
 
-<img src="assets/panel-login.jpg" alt="The Mechon panel" width="100%" />
+<img src="assets/banner.png" alt="Mechon: start your own bot hosting company" width="100%" />
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Pre--alpha-F59E0B?style=flat-square&labelColor=212123" alt="Status: pre-alpha" />
@@ -46,6 +46,10 @@ The part that matters is isolation. Every bot runs in its own locked-down contai
 - 🛡️ **A hardened tier.** Switch a plan to gVisor for an extra kernel boundary between customers.
 - 📦 **Two binaries, no sprawl.** The panel (web UI built in) plus Postgres, and one agent per server next to Docker. No Kubernetes, no Redis.
 - 🎨 **A panel people enjoy using.** Dark and light themes, <kbd>⌘</kbd> <kbd>K</kbd> everywhere.
+
+## The panel
+
+<img src="assets/panel-login.jpg" alt="The Mechon sign-in page" width="100%" />
 
 ## Why not something else?
 
