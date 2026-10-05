@@ -123,6 +123,7 @@ func (s *Server) createPlan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "plan.create", "plan", p.ID.String(), p.Name, map[string]any{"slug": p.Slug})
 	writeJSON(w, http.StatusCreated, toPlanJSON(p, 0))
 }
 
@@ -149,6 +150,7 @@ func (s *Server) updatePlan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, notFoundIfNoRows(err))
 		return
 	}
+	s.audit(r, "plan.update", "plan", p.ID.String(), p.Name, map[string]any{"memoryMb": p.MemoryMb, "cpuMillicores": p.CpuMillicores, "diskMb": p.DiskMb, "maxBots": p.MaxBots})
 	writeJSON(w, http.StatusOK, toPlanJSON(p, 0))
 	// pids and hardening are part of each bot's spec.
 	s.hub.pushPlan(context.WithoutCancel(r.Context()), id)
@@ -164,6 +166,7 @@ func (s *Server) archivePlan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "plan.archive", "plan", id.String(), "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -259,15 +262,23 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	var sub *db.Subscription
 	if in.PlanID != nil {
-		if _, err := s.subscribe(r.Context(), q, u.ID, *in.PlanID, nil); err != nil {
+		created, err := s.subscribe(r.Context(), q, u.ID, *in.PlanID, nil)
+		if err != nil {
 			writeError(w, r, err)
 			return
 		}
+		sub = &created
 	}
 	if err := tx.Commit(r.Context()); err != nil {
 		writeError(w, r, err)
 		return
+	}
+	s.audit(r, "user.create", "user", u.ID.String(), u.Email, map[string]any{"role": u.Role})
+	s.emit(r.Context(), "user.created", userEvent(u))
+	if sub != nil {
+		s.emit(r.Context(), "subscription.created", subscriptionEvent(*sub))
 	}
 	writeJSON(w, http.StatusCreated, toUserJSON(u))
 }
@@ -334,6 +345,7 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	s.audit(r, "user.update", "user", u.ID.String(), u.Email, map[string]any{"role": u.Role})
 	writeJSON(w, http.StatusOK, toUserJSON(u))
 }
 
@@ -361,6 +373,7 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "user.delete", "user", id.String(), "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -399,6 +412,7 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "user.password", "user", id.String(), "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -425,6 +439,12 @@ func (s *Server) suspendUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, notFoundIfNoRows(err))
 		return
 	}
+	event := "user.unsuspended"
+	if in.Suspended {
+		event = "user.suspended"
+	}
+	s.audit(r, strings.Replace(event, "suspended", "suspend", 1), "user", u.ID.String(), u.Email, nil)
+	s.emit(r.Context(), event, userEvent(u))
 	writeJSON(w, http.StatusOK, toUserJSON(u))
 	s.hub.pushUser(context.WithoutCancel(r.Context()), id)
 }
@@ -585,6 +605,8 @@ func (s *Server) createSubscription(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "subscription.create", "subscription", sub.ID.String(), "", map[string]any{"userId": userID, "planId": in.PlanID})
+	s.emit(r.Context(), "subscription.created", subscriptionEvent(sub))
 	writeJSON(w, http.StatusCreated, map[string]any{"id": sub.ID, "status": sub.Status})
 }
 
@@ -662,6 +684,11 @@ func (s *Server) updateSubscription(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	s.audit(r, "subscription.update", "subscription", sub.ID.String(), "", map[string]any{"status": in.Status, "planId": in.PlanID, "overrides": in.Overrides, "note": in.Note})
+	if in.Status != nil {
+		event := map[db.SubscriptionStatus]string{db.SubscriptionStatusActive: "subscription.activated", db.SubscriptionStatusSuspended: "subscription.suspended", db.SubscriptionStatusTerminated: "subscription.terminated"}[*in.Status]
+		s.emit(ctx, event, subscriptionEvent(sub))
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"id": sub.ID, "status": sub.Status, "planId": sub.PlanID})
 	s.hub.pushSubscription(context.WithoutCancel(ctx), id)
 }
@@ -682,4 +709,12 @@ func (s *Server) terminateSubscriptionBots(ctx context.Context, subID uuid.UUID)
 
 func (s *Server) listTemplates(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, templates.All())
+}
+
+func userEvent(u db.User) map[string]any {
+	return map[string]any{"id": u.ID, "email": u.Email, "name": u.Name, "role": u.Role, "externalId": u.ExternalID}
+}
+
+func subscriptionEvent(s db.Subscription) map[string]any {
+	return map[string]any{"id": s.ID, "userId": s.UserID, "planId": s.PlanID, "status": s.Status, "externalId": s.ExternalID}
 }

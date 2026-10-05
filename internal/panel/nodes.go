@@ -142,6 +142,7 @@ func (s *Server) createNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "node.create", "node", n.ID.String(), n.Name, nil)
 	writeJSON(w, http.StatusCreated, map[string]any{"node": s.nodeView(n, 0, capacityJSON{}), "setup": s.setupFor(token)})
 }
 
@@ -170,6 +171,7 @@ func (s *Server) updateNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, notFoundIfNoRows(err))
 		return
 	}
+	s.audit(r, "node.update", "node", n.ID.String(), n.Name, map[string]any{"maintenance": n.Maintenance, "memoryMb": n.MemoryMb, "overcommit": n.Overcommit})
 	writeJSON(w, http.StatusOK, s.nodeView(n, 0, capacityJSON{}))
 }
 
@@ -192,6 +194,7 @@ func (s *Server) deleteNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "node.delete", "node", id.String(), "", nil)
 	if c := s.hub.conn(id); c != nil {
 		c.ws.CloseNow()
 	}
@@ -217,5 +220,6 @@ func (s *Server) rotateNodeToken(w http.ResponseWriter, r *http.Request) {
 	if c := s.hub.conn(id); c != nil {
 		c.ws.CloseNow()
 	}
+	s.audit(r, "node.token", "node", id.String(), "", nil)
 	writeJSON(w, http.StatusOK, s.setupFor(token))
 }

@@ -275,6 +275,49 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type WebhookDeliveryStatus string
+
+const (
+	WebhookDeliveryStatusPending   WebhookDeliveryStatus = "pending"
+	WebhookDeliveryStatusDelivered WebhookDeliveryStatus = "delivered"
+	WebhookDeliveryStatusFailed    WebhookDeliveryStatus = "failed"
+)
+
+func (e *WebhookDeliveryStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = WebhookDeliveryStatus(s)
+	case string:
+		*e = WebhookDeliveryStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for WebhookDeliveryStatus: %T", src)
+	}
+	return nil
+}
+
+type NullWebhookDeliveryStatus struct {
+	WebhookDeliveryStatus WebhookDeliveryStatus
+	Valid                 bool // Valid is true if WebhookDeliveryStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullWebhookDeliveryStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.WebhookDeliveryStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.WebhookDeliveryStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullWebhookDeliveryStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.WebhookDeliveryStatus), nil
+}
+
 type ApiKey struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
@@ -284,6 +327,20 @@ type ApiKey struct {
 	Scopes     []string
 	LastUsedAt *time.Time
 	ExpiresAt  *time.Time
+	CreatedAt  time.Time
+}
+
+type AuditLog struct {
+	ID         int64
+	ActorID    *uuid.UUID
+	ActorName  string
+	ViaApiKey  bool
+	Action     string
+	TargetType string
+	TargetID   string
+	TargetName string
+	Metadata   []byte
+	Ip         string
 	CreatedAt  time.Time
 }
 
@@ -386,6 +443,12 @@ type Session struct {
 	LastSeenAt time.Time
 }
 
+type Setting struct {
+	Key       string
+	Value     string
+	UpdatedAt time.Time
+}
+
 type Subscription struct {
 	ID            uuid.UUID
 	UserID        uuid.UUID
@@ -410,4 +473,28 @@ type User struct {
 	ExternalID   *string
 	SuspendedAt  *time.Time
 	CreatedAt    time.Time
+}
+
+type WebhookDelivery struct {
+	ID             uuid.UUID
+	EndpointID     uuid.UUID
+	EventID        uuid.UUID
+	EventType      string
+	Payload        []byte
+	Status         WebhookDeliveryStatus
+	Attempts       int32
+	LastStatusCode *int32
+	LastError      string
+	CreatedAt      time.Time
+	DeliveredAt    *time.Time
+}
+
+type WebhookEndpoint struct {
+	ID          uuid.UUID
+	Url         string
+	Description string
+	SecretEnc   []byte
+	Events      []string
+	Enabled     bool
+	CreatedAt   time.Time
 }

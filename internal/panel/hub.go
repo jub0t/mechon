@@ -206,6 +206,7 @@ func (h *Hub) serveAgent(w http.ResponseWriter, r *http.Request) {
 	h.nodeStats[node.ID] = nodeLive{Hello: hello, ConnectedAt: time.Now()}
 	h.mu.Unlock()
 	log.Info("agent connected", "version", hello.AgentVersion, "bots", len(hello.Bots))
+	h.s.emit(ctx, "node.online", map[string]any{"id": node.ID, "name": node.Name, "agentVersion": hello.AgentVersion})
 
 	for _, st := range hello.Bots {
 		h.onBotState(ctx, node.ID, st)
@@ -224,6 +225,7 @@ func (h *Hub) serveAgent(w http.ResponseWriter, r *http.Request) {
 		if err := h.s.q.MarkNodeBotsUnknown(context.WithoutCancel(ctx), node.ID); err != nil {
 			log.Error("mark bots unknown", "err", err)
 		}
+		h.s.emit(ctx, "node.offline", map[string]any{"id": node.ID, "name": node.Name})
 	} else {
 		h.mu.Unlock()
 	}
@@ -328,6 +330,13 @@ func (h *Hub) onBotState(ctx context.Context, nodeID uuid.UUID, st proto.BotStat
 	if err := h.s.q.SetBotObserved(ctx, db.SetBotObservedParams{ID: id, ObservedState: state, ObservedError: errText, ExitCode: exit, RestartCount: int32(st.Restarts)}); err != nil {
 		slog.Error("bot state", "bot", id, "err", err)
 	}
+	if st.State == proto.StateCrashed {
+		if row, err := h.s.q.GetBot(ctx, id); err == nil {
+			ev := botEvent(row)
+			ev["exitCode"], ev["oomKilled"], ev["restarts"], ev["error"] = st.ExitCode, st.OOMKilled, st.Restarts, errText
+			h.s.emit(ctx, "bot.crashed", ev)
+		}
+	}
 	h.publish(id, streamEvent{Type: "state", Data: map[string]any{
 		"state": state, "error": errText, "exitCode": exit, "restarts": st.Restarts, "oomKilled": st.OOMKilled, "at": st.At,
 	}})
@@ -411,6 +420,15 @@ func (h *Hub) onDeployProgress(ctx context.Context, p proto.DeployProgress) {
 	if status, ok := phaseStatus[p.Phase]; ok {
 		if err := h.s.q.SetDeployStatus(ctx, db.SetDeployStatusParams{ID: id, Status: status, Error: p.Error}); err != nil {
 			slog.Error("deploy status", "deploy", id, "err", err)
+		}
+		if status == db.DeployStatusLive || status == db.DeployStatusFailed {
+			if d, err := h.s.q.GetDeploy(ctx, id); err == nil {
+				ev := map[string]any{"id": d.ID, "number": d.Number, "botId": d.BotID, "source": d.Source, "sha256": d.ArtifactSha256, "error": p.Error}
+				if d.GitCommit != "" {
+					ev["git"] = map[string]any{"url": d.GitUrl, "ref": d.GitRef, "commit": d.GitCommit}
+				}
+				h.s.emit(ctx, "deploy."+string(status), ev)
+			}
 		}
 		switch status {
 		case db.DeployStatusLive:

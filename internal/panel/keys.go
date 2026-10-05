@@ -86,6 +86,7 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "apikey.create", "apikey", k.ID.String(), k.Name, map[string]any{"scopes": k.Scopes})
 	writeJSON(w, http.StatusCreated, struct {
 		apiKeyJSON
 		Secret string `json:"secret"`
@@ -107,5 +108,6 @@ func (s *Server) deleteKey(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, errNotFound)
 		return
 	}
+	s.audit(r, "apikey.delete", "apikey", id.String(), "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }

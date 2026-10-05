@@ -124,6 +124,7 @@ func (s *Server) createDeploy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "bot.deploy", "bot", row.Bot.ID.String(), row.Bot.Name, map[string]any{"deploy": d.Number, "source": source, "sha256": art.SHA256})
 	writeJSON(w, http.StatusCreated, d)
 }
 
@@ -154,6 +155,7 @@ func (s *Server) rollbackDeploy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "bot.rollback", "bot", row.Bot.ID.String(), row.Bot.Name, map[string]any{"deploy": d.Number, "to": old.Number})
 	writeJSON(w, http.StatusCreated, d)
 }
 
@@ -187,6 +189,7 @@ func (s *Server) createGitDeploy(w http.ResponseWriter, r *http.Request, botID u
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "bot.deploy", "bot", botID.String(), "", map[string]any{"deploy": d.Number, "source": "git", "git": src.URL, "ref": src.Ref, "commit": src.Commit})
 	writeJSON(w, http.StatusCreated, d)
 }
 

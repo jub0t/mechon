@@ -96,6 +96,9 @@ func serve(ctx context.Context) error {
 		return err
 	}
 	go srv.Background(ctx)
+	if err := srv.StartJobs(ctx); err != nil {
+		return err
+	}
 
 	hs := &http.Server{
 		Addr:              cfg.Listen,

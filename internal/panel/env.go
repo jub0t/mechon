@@ -188,6 +188,11 @@ func (s *Server) putEnv(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	keys := make([]string, 0, len(vars))
+	for _, v := range vars {
+		keys = append(keys, v.Key)
+	}
+	s.audit(r, "bot.env", "bot", row.Bot.ID.String(), row.Bot.Name, map[string]any{"keys": keys})
 	w.WriteHeader(http.StatusNoContent)
 	s.hub.pushBot(context.WithoutCancel(ctx), row.Bot.ID)
 }

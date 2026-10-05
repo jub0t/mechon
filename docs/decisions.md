@@ -27,3 +27,4 @@ Newest last. Status is **Decided** (founder call), **Proposed** (in the spec, aw
 | 2026-10-04 | Disk images grow online (`truncate`, `losetup -c`, `resize2fs`); shrinking is refused | Decided |
 | 2026-10-04 | River is deferred until webhooks: desired-state reconciliation makes deploy dispatch durable without a job queue | Decided |
 | 2026-10-04 | Admins can override any plan limit (bots, memory, CPU, disk, processes) for one customer's subscription, with a note; empty means "use the plan" | Decided (founder) |
+| 2026-10-04 | Webhooks deliver through River (Postgres-backed): one delivery row per endpoint per event, Stripe-style HMAC-SHA256 signature, 14 attempts with exponential backoff (about a day) | Decided |

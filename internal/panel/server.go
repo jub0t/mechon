@@ -12,7 +12,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"github.com/jub0t/mechon/internal/config"
 	"github.com/jub0t/mechon/internal/db"
@@ -27,6 +30,7 @@ type Server struct {
 	now  func() time.Time
 	box  *secrets.Box
 	hub  *Hub
+	jobs *river.Client[pgx.Tx]
 
 	artifactDir string
 
@@ -55,7 +59,33 @@ func New(cfg config.Panel, pool *pgxpool.Pool, web fs.FS) (*Server, error) {
 		loginByEmail: newLimiter(10, 15*time.Minute),
 	}
 	s.hub = newHub(s)
+
+	workers := river.NewWorkers()
+	river.AddWorker(workers, &webhookWorker{s: s, client: &http.Client{Timeout: 15 * time.Second}})
+	jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Queues:  map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 8}},
+		Workers: workers,
+		Logger:  slog.New(slog.DiscardHandler),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("job queue: %w", err)
+	}
+	s.jobs = jobs
 	return s, nil
+}
+
+// StartJobs runs background jobs (webhook deliveries) until ctx is done.
+func (s *Server) StartJobs(ctx context.Context) error {
+	if err := s.jobs.Start(ctx); err != nil {
+		return err
+	}
+	go func() {
+		<-ctx.Done()
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = s.jobs.Stop(stopCtx)
+	}()
+	return nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -81,6 +111,16 @@ func (s *Server) Handler() http.Handler {
 	route("DELETE /api/v1/me/keys/{id}", session, s.deleteKey)
 
 	route("GET /api/v1/templates", signedIn, s.listTemplates)
+	api.HandleFunc("GET /api/v1/settings/public", s.publicSettings)
+	route("PUT /api/v1/settings", admin, s.updateSettings)
+	route("GET /api/v1/audit", admin, s.listAudit)
+	route("GET /api/v1/webhooks", admin, s.listWebhooks)
+	route("POST /api/v1/webhooks", admin, s.createWebhook)
+	route("PATCH /api/v1/webhooks/{id}", admin, s.updateWebhook)
+	route("DELETE /api/v1/webhooks/{id}", admin, s.deleteWebhook)
+	route("POST /api/v1/webhooks/{id}/test", admin, s.testWebhook)
+	route("GET /api/v1/webhooks/{id}/deliveries", admin, s.listDeliveries)
+	route("POST /api/v1/webhook-deliveries/{id}/retry", admin, s.retryDelivery)
 	route("GET /api/v1/overview", admin, s.overview)
 
 	route("GET /api/v1/plans", admin, s.listPlans)

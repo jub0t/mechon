@@ -54,6 +54,11 @@ func testServer(t *testing.T) (*httptest.Server, *db.Queries) {
 		t.Fatal(err)
 	}
 	ts.Config.Handler = srv.Handler()
+	jobsCtx, stopJobs := context.WithCancel(context.Background())
+	t.Cleanup(stopJobs)
+	if err := srv.StartJobs(jobsCtx); err != nil {
+		t.Fatal(err)
+	}
 	ts.Start()
 	t.Cleanup(ts.Close)
 	return ts, db.New(pool)

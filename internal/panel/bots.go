@@ -252,6 +252,8 @@ func (s *Server) createBot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	s.audit(r, "bot.create", "bot", bot.ID.String(), bot.Name, map[string]any{"template": bot.Template, "memoryMb": bot.MemoryMb, "owner": row.OwnerEmail})
+	s.emit(ctx, "bot.created", botEvent(row))
 	writeJSON(w, http.StatusCreated, s.getBotView(row))
 	s.hub.pushBot(context.WithoutCancel(ctx), bot.ID)
 }
@@ -348,6 +350,7 @@ func (s *Server) updateBot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, _ = s.q.GetBot(ctx, row.Bot.ID)
+	s.audit(r, "bot.update", "bot", row.Bot.ID.String(), row.Bot.Name, map[string]any{"memoryMb": in.MemoryMB, "cpuMillicores": in.CPUMillicores, "diskMb": in.DiskMB})
 	writeJSON(w, http.StatusOK, s.getBotView(row))
 	s.hub.pushBot(context.WithoutCancel(ctx), row.Bot.ID)
 }
@@ -383,6 +386,8 @@ func (s *Server) deleteBot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.hub.removeBot(context.WithoutCancel(r.Context()), row.Bot.NodeID, row.Bot.ID)
+	s.audit(r, "bot.delete", "bot", row.Bot.ID.String(), row.Bot.Name, map[string]any{"owner": row.OwnerEmail})
+	s.emit(r.Context(), "bot.deleted", botEvent(row))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -431,7 +436,16 @@ func (s *Server) botAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, _ = s.q.GetBot(ctx, row.Bot.ID)
+	s.audit(r, "bot."+in.Action, "bot", row.Bot.ID.String(), row.Bot.Name, nil)
 	writeJSON(w, http.StatusOK, s.getBotView(row))
+}
+
+func botEvent(row db.GetBotRow) map[string]any {
+	return map[string]any{
+		"id": row.Bot.ID, "name": row.Bot.Name, "template": row.Bot.Template, "state": row.Bot.ObservedState,
+		"subscriptionId": row.Bot.SubscriptionID, "owner": map[string]any{"id": row.OwnerID, "email": row.OwnerEmail},
+		"node": map[string]any{"id": row.Bot.NodeID, "name": row.NodeName},
+	}
 }
 
 func (s *Server) botMetrics(w http.ResponseWriter, r *http.Request) {

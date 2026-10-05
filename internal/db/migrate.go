@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
 )
 
 //go:embed migrations/*.sql
@@ -25,6 +27,14 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("migrations: %w", err)
+	}
+	// River (the job queue) keeps its own tables and migrations.
+	migrator, err := rivermigrate.New(riverpgxv5.New(pool), nil)
+	if err != nil {
+		return fmt.Errorf("river migrations: %w", err)
+	}
+	if _, err := migrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
+		return fmt.Errorf("river migrations: %w", err)
 	}
 	return nil
 }
