@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Settings, Webhook } from 'lucide-react'
 import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router'
@@ -16,10 +15,11 @@ import { BotsPage } from '@/routes/bots'
 import { LoginPage } from '@/routes/login'
 import { NodesPage } from '@/routes/nodes'
 import { PlansPage } from '@/routes/plans'
+import { SettingsPage } from '@/routes/settings'
 import { UsersPage } from '@/routes/users'
+import { WebhooksPage } from '@/routes/webhooks'
 import { NotFoundPage } from '@/routes/not-found'
 import { OverviewPage } from '@/routes/overview'
-import { PlannedPage } from '@/routes/planned'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -95,18 +95,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="nodes" element={admin(<NodesPage />)} />
               <Route path="plans" element={admin(<PlansPage />)} />
               <Route path="users" element={admin(<UsersPage />)} />
-              <Route
-                path="webhooks"
-                element={admin(
-                  <PlannedPage icon={Webhook} milestone={6} title="Webhooks" description="Tell your billing system and tools when something happens." bullets={['Signed with HMAC-SHA256, retried for 24 hours', 'Bot crashed, deploy live or failed, node offline, and more', 'Delivery log with request and response']} />,
-                )}
-              />
-              <Route
-                path="settings"
-                element={admin(
-                  <PlannedPage icon={Settings} milestone={6} title="Settings" description="Install-wide settings for your hosting panel." bullets={['Your brand name and logo on the login page', 'Audit log of every admin action', 'Git deploys from GitHub, GitLab or any git URL']} />,
-                )}
-              />
+              <Route path="webhooks" element={admin(<WebhooksPage />)} />
+              <Route path="settings" element={admin(<SettingsPage />)} />
               <Route path="account" element={<AccountPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

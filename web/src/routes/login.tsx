@@ -9,7 +9,8 @@ import { ThemeToggle } from '@/components/shell/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ApiError } from '@/lib/api'
+import { useQuery } from '@tanstack/react-query'
+import { ApiError, api } from '@/lib/api'
 import { useLogin, useMe } from '@/lib/auth'
 
 /** Only same-site paths are followed after sign-in, so ?next= cannot bounce users off-site. */
@@ -19,6 +20,8 @@ function safeNext(raw: string | null) {
 
 export function LoginPage() {
   const me = useMe()
+  const site = useQuery({ queryKey: ['public-settings'], queryFn: api.publicSettings, staleTime: 5 * 60_000 })
+  const brand = site.data?.brandName || 'Mechon'
   const login = useLogin()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -54,7 +57,7 @@ export function LoginPage() {
       </div>
 
       <header className="relative flex items-center justify-between px-5 py-5 sm:px-8">
-        <Logo />
+        {site.data?.brandName ? <span className="font-display text-[19px] font-bold tracking-[-0.02em]">{site.data.brandName}</span> : <Logo />}
         <ThemeToggle />
       </header>
 
@@ -62,7 +65,7 @@ export function LoginPage() {
         <Reveal y={18} className="w-full max-w-[440px]">
           <motion.div animate={shake} className="glass rounded-[30px] px-6 py-9 sm:px-10 sm:py-11">
             <h1 className="text-display text-[clamp(2.4rem,2rem+1.6vw,3rem)]">Welcome back.</h1>
-            <p className="mt-3 text-[15.5px] text-muted-foreground">Sign in to run your bots.</p>
+            <p className="mt-3 text-[15.5px] text-muted-foreground">Sign in to {brand} to run your bots.</p>
 
             <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
               <div className="space-y-2">
@@ -138,7 +141,14 @@ export function LoginPage() {
             </form>
           </motion.div>
           <p className="mt-6 text-center text-[13px] text-faint-foreground">
-            Forgot your password? Ask your host's admin to reset it.
+            Forgot your password?{' '}
+            {site.data?.supportUrl ? (
+              <a href={site.data.supportUrl} target="_blank" rel="noreferrer" className="font-semibold text-muted-foreground hover:text-foreground">
+                Contact support
+              </a>
+            ) : (
+              "Ask your host's admin to reset it."
+            )}
           </p>
         </Reveal>
       </main>

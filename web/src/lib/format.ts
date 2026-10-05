@@ -17,7 +17,7 @@ export function bytes(n: number) {
     v /= 1024
     i++
   }
-  return `${v >= 100 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
+  return `${v >= 100 || Number.isInteger(v) ? Math.round(v) : v.toFixed(1)} ${units[i]}`
 }
 
 export function cores(millicores: number) {
@@ -26,6 +26,7 @@ export function cores(millicores: number) {
 }
 
 export function pct(n: number) {
+  if (n === 0) return '0%'
   return `${n >= 10 ? Math.round(n) : n.toFixed(1)}%`
 }
 

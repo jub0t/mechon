@@ -208,6 +208,39 @@ export type Overview = {
   allocated: Capacity
 }
 
+export type Activity = {
+  fleet: { t: number; memory: number; cpuCores: number; bots: number }[]
+  deploys: { day: number; succeeded: number; failed: number }[]
+}
+
+export type Webhook = { id: string; url: string; description: string; events: string[]; enabled: boolean; failed24h: number; createdAt: string }
+export type WebhookInput = { url: string; description: string; events: string[]; enabled?: boolean }
+export type Delivery = {
+  id: string
+  eventType: string
+  status: 'pending' | 'delivered' | 'failed'
+  attempts: number
+  lastStatusCode: number | null
+  lastError: string
+  payload: unknown
+  createdAt: string
+  deliveredAt: string | null
+}
+export type AuditEntry = {
+  id: number
+  actorId: string | null
+  actorName: string
+  viaApiKey: boolean
+  action: string
+  targetType: string
+  targetId: string
+  targetName: string
+  metadata: Record<string, unknown>
+  ip: string
+  createdAt: string
+}
+export type SiteSettings = { brandName: string; supportUrl: string }
+
 // ---------- Endpoints ----------
 
 export const api = {
@@ -224,7 +257,18 @@ export const api = {
   deleteKey: (id: string) => del(`/me/keys/${id}`),
 
   templates: () => get<Template[]>('/templates'),
+  publicSettings: () => get<SiteSettings>('/settings/public'),
+  updateSettings: (b: SiteSettings) => put<SiteSettings>('/settings', b),
+  audit: (before?: number, prefix = '') => get<AuditEntry[]>(`/audit?prefix=${encodeURIComponent(prefix)}${before ? `&before=${before}` : ''}`),
+  webhooks: () => get<{ endpoints: Webhook[]; events: string[] }>('/webhooks'),
+  createWebhook: (b: WebhookInput) => post<Webhook & { secret: string }>('/webhooks', b),
+  updateWebhook: (id: string, b: WebhookInput) => patch<Webhook>(`/webhooks/${id}`, b),
+  deleteWebhook: (id: string) => del(`/webhooks/${id}`),
+  testWebhook: (id: string) => post<void>(`/webhooks/${id}/test`),
+  deliveries: (id: string) => get<Delivery[]>(`/webhooks/${id}/deliveries`),
+  retryDelivery: (id: string) => post<void>(`/webhook-deliveries/${id}/retry`),
   overview: () => get<Overview>('/overview'),
+  activity: (range: '1h' | '24h' | '7d') => get<Activity>(`/overview/activity?range=${range}`),
 
   plans: () => get<Plan[]>('/plans'),
   createPlan: (b: PlanInput) => post<Plan>('/plans', b),

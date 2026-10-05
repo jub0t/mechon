@@ -24,6 +24,87 @@ func (q *Queries) DeleteOldMetrics(ctx context.Context, ts time.Time) (int64, er
 	return result.RowsAffected(), nil
 }
 
+const deploysPerDay = `-- name: DeploysPerDay :many
+SELECT date_trunc('day', created_at)::timestamptz                                AS day,
+       count(*) FILTER (WHERE status IN ('live', 'superseded'))::int            AS succeeded,
+       count(*) FILTER (WHERE status = 'failed')::int                           AS failed
+FROM deploys
+WHERE created_at >= $1
+GROUP BY 1
+ORDER BY 1
+`
+
+type DeploysPerDayRow struct {
+	Day       time.Time
+	Succeeded int32
+	Failed    int32
+}
+
+func (q *Queries) DeploysPerDay(ctx context.Context, createdAt time.Time) ([]DeploysPerDayRow, error) {
+	rows, err := q.db.Query(ctx, deploysPerDay, createdAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeploysPerDayRow
+	for rows.Next() {
+		var i DeploysPerDayRow
+		if err := rows.Scan(&i.Day, &i.Succeeded, &i.Failed); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const fleetMetrics = `-- name: FleetMetrics :many
+SELECT m.ts,
+       sum(m.memory_bytes)::bigint                          AS memory_bytes,
+       sum(m.cpu_pct * b.cpu_millicores / 100000.0)::float8 AS cpu_cores,
+       count(*)::int                                        AS bots
+FROM bot_metrics m
+JOIN bots b ON b.id = m.bot_id
+WHERE m.ts >= $1
+GROUP BY m.ts
+ORDER BY m.ts
+`
+
+type FleetMetricsRow struct {
+	Ts          time.Time
+	MemoryBytes int64
+	CpuCores    float64
+	Bots        int32
+}
+
+// Every bot's usage added up, per minute.
+func (q *Queries) FleetMetrics(ctx context.Context, ts time.Time) ([]FleetMetricsRow, error) {
+	rows, err := q.db.Query(ctx, fleetMetrics, ts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FleetMetricsRow
+	for rows.Next() {
+		var i FleetMetricsRow
+		if err := rows.Scan(
+			&i.Ts,
+			&i.MemoryBytes,
+			&i.CpuCores,
+			&i.Bots,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBotMetrics = `-- name: ListBotMetrics :many
 SELECT ts, cpu_pct, memory_bytes, disk_bytes FROM bot_metrics
 WHERE bot_id = $1 AND ts >= $2

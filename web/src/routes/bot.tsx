@@ -24,7 +24,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { type DragEvent, type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { AreaChart, Sparkline } from '@/components/data/chart'
+import { Sparkline } from '@/components/data/chart'
+import { TimeChart } from '@/components/data/time-chart'
 import { Field, FormError } from '@/components/data/field'
 import { BotStateBadge, DeployBadge, Pill } from '@/components/data/state-badge'
 import { EmptyState, Segmented } from '@/components/data/stat'
@@ -538,13 +539,14 @@ function DeployLog({ botId, deployId, onClose }: { botId: string; deployId: stri
 
 function Metrics({ bot }: { bot: Bot }) {
   const [range, setRange] = useState<'1h' | '24h' | '7d'>('1h')
-  const m = useQuery({ queryKey: ['metrics', bot.id, range], queryFn: () => api.metrics(bot.id, range), refetchInterval: 60000 })
+  const m = useQuery({ queryKey: ['metrics', bot.id, range], queryFn: () => api.metrics(bot.id, range), refetchInterval: 60000, placeholderData: (prev) => prev })
   const pts = m.data ?? []
   return (
     <div className="space-y-5">
       <Segmented
         value={range}
         onChange={setRange}
+        className={cn(m.isFetching && 'opacity-80')}
         options={[
           { value: '1h', label: 'Hour' },
           { value: '24h', label: 'Day' },
@@ -552,13 +554,25 @@ function Metrics({ bot }: { bot: Bot }) {
         ]}
       />
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card className="px-6 pt-5 pb-5">
-          <p className="mb-4 font-display text-[17px] font-bold">Memory</p>
-          <AreaChart points={pts.map((p) => ({ t: p.t, v: p.memory }))} max={bot.limits.memoryMb * 2 ** 20} format={bytes} />
+        <Card className="px-6 pt-5 pb-4">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-[17px] font-bold">Memory</p>
+              <p className="mt-0.5 text-[12.5px] text-faint-foreground">The dashed line is the bot's limit; past it the kernel stops the bot</p>
+            </div>
+            {pts.length > 0 && <p className="font-display text-[22px] font-bold tabular-nums">{bytes(pts[pts.length - 1].memory)}</p>}
+          </div>
+          <TimeChart label="Memory" bytes points={pts.map((p) => ({ t: p.t, v: p.memory }))} limit={{ value: bot.limits.memoryMb * 2 ** 20, label: `limit ${mb(bot.limits.memoryMb)}` }} format={(v) => (v === 0 ? '0' : bytes(v))} />
         </Card>
-        <Card className="px-6 pt-5 pb-5">
-          <p className="mb-4 font-display text-[17px] font-bold">CPU</p>
-          <AreaChart points={pts.map((p) => ({ t: p.t, v: p.cpu }))} max={100} format={pct} />
+        <Card className="px-6 pt-5 pb-4">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-[17px] font-bold">CPU</p>
+              <p className="mt-0.5 text-[12.5px] text-faint-foreground">Percent of the bot's {cores(bot.limits.cpuMillicores)}</p>
+            </div>
+            {pts.length > 0 && <p className="font-display text-[22px] font-bold tabular-nums">{pct(pts[pts.length - 1].cpu)}</p>}
+          </div>
+          <TimeChart label="CPU" points={pts.map((p) => ({ t: p.t, v: p.cpu }))} max={100} format={pct} />
         </Card>
       </div>
     </div>

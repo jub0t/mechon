@@ -122,6 +122,7 @@ func (s *Server) Handler() http.Handler {
 	route("GET /api/v1/webhooks/{id}/deliveries", admin, s.listDeliveries)
 	route("POST /api/v1/webhook-deliveries/{id}/retry", admin, s.retryDelivery)
 	route("GET /api/v1/overview", admin, s.overview)
+	route("GET /api/v1/overview/activity", admin, s.activity)
 
 	route("GET /api/v1/plans", admin, s.listPlans)
 	route("POST /api/v1/plans", admin, s.createPlan)
