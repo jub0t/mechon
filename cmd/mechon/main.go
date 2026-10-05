@@ -2,6 +2,7 @@
 //
 //	mechon serve   run the panel (the default)
 //	mechon init    create the first admin account
+//	mechon keygen  print a new MECHON_SECRET_KEY
 package main
 
 import (
@@ -25,6 +26,7 @@ import (
 	"github.com/jub0t/mechon/internal/config"
 	"github.com/jub0t/mechon/internal/db"
 	"github.com/jub0t/mechon/internal/panel"
+	"github.com/jub0t/mechon/internal/secrets"
 	"github.com/jub0t/mechon/web"
 )
 
@@ -43,8 +45,10 @@ func main() {
 		err = serve(ctx)
 	case "init":
 		err = initAdmin(ctx, args)
+	case "keygen":
+		fmt.Println(secrets.NewKey())
 	default:
-		err = fmt.Errorf("unknown command %q (want serve or init)", cmd)
+		err = fmt.Errorf("unknown command %q (want serve, init or keygen)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "mechon:", err)
@@ -81,7 +85,10 @@ func serve(ctx context.Context) error {
 	}
 	defer pool.Close()
 
-	srv := panel.New(cfg, pool, web.Dist())
+	srv, err := panel.New(cfg, pool, web.Dist())
+	if err != nil {
+		return err
+	}
 	go srv.Background(ctx)
 
 	hs := &http.Server{

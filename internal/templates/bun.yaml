@@ -1,0 +1,16 @@
+id: bun
+name: Bun
+language: Bun 1
+description: A bot in TypeScript or JavaScript on Bun.
+image: oven/bun:1-slim
+install: |
+  if [ -f package.json ]; then bun install --production; fi
+start: exec bun run "${MAIN:-index.ts}"
+env:
+  - key: DISCORD_TOKEN
+    label: Bot token
+    secret: true
+    required: true
+  - key: MAIN
+    label: Entry file
+    default: index.ts

@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -56,6 +57,65 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const createUserFull = `-- name: CreateUserFull :one
+INSERT INTO users (email, name, password_hash, role, external_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, email, name, password_hash, role, external_id, suspended_at, created_at
+`
+
+type CreateUserFullParams struct {
+	Email        string
+	Name         string
+	PasswordHash *string
+	Role         UserRole
+	ExternalID   *string
+}
+
+func (q *Queries) CreateUserFull(ctx context.Context, arg CreateUserFullParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUserFull,
+		arg.Email,
+		arg.Name,
+		arg.PasswordHash,
+		arg.Role,
+		arg.ExternalID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.ExternalID,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const deleteUserSessions = `-- name: DeleteUserSessions :exec
+DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2
+`
+
+type DeleteUserSessionsParams struct {
+	UserID    uuid.UUID
+	TokenHash []byte
+}
+
+func (q *Queries) DeleteUserSessions(ctx context.Context, arg DeleteUserSessionsParams) error {
+	_, err := q.db.Exec(ctx, deleteUserSessions, arg.UserID, arg.TokenHash)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, name, password_hash, role, external_id, suspended_at, created_at FROM users WHERE email = $1
 `
@@ -82,6 +142,150 @@ SELECT id, email, name, password_hash, role, external_id, suspended_at, created_
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.ExternalID,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT u.id, u.email, u.name, u.password_hash, u.role, u.external_id, u.suspended_at, u.created_at,
+       (SELECT count(*) FROM subscriptions s WHERE s.user_id = u.id AND s.status <> 'terminated')::int AS subscription_count,
+       (SELECT count(*) FROM bots b JOIN subscriptions s ON s.id = b.subscription_id
+         WHERE s.user_id = u.id AND b.deleted_at IS NULL)::int AS bot_count
+FROM users u
+ORDER BY u.role, u.created_at
+`
+
+type ListUsersRow struct {
+	ID                uuid.UUID
+	Email             string
+	Name              string
+	PasswordHash      *string
+	Role              UserRole
+	ExternalID        *string
+	SuspendedAt       *time.Time
+	CreatedAt         time.Time
+	SubscriptionCount int32
+	BotCount          int32
+}
+
+func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
+	rows, err := q.db.Query(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUsersRow
+	for rows.Next() {
+		var i ListUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.PasswordHash,
+			&i.Role,
+			&i.ExternalID,
+			&i.SuspendedAt,
+			&i.CreatedAt,
+			&i.SubscriptionCount,
+			&i.BotCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setUserPassword = `-- name: SetUserPassword :exec
+UPDATE users SET password_hash = $2 WHERE id = $1
+`
+
+type SetUserPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash *string
+}
+
+func (q *Queries) SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, setUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const setUserSuspended = `-- name: SetUserSuspended :one
+UPDATE users SET suspended_at = CASE WHEN $1::bool THEN coalesce(suspended_at, now()) ELSE NULL END
+WHERE id = $2 RETURNING id, email, name, password_hash, role, external_id, suspended_at, created_at
+`
+
+type SetUserSuspendedParams struct {
+	Suspended bool
+	ID        uuid.UUID
+}
+
+func (q *Queries) SetUserSuspended(ctx context.Context, arg SetUserSuspendedParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserSuspended, arg.Suspended, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.ExternalID,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE users SET name = $2, email = $3 WHERE id = $1 RETURNING id, email, name, password_hash, role, external_id, suspended_at, created_at
+`
+
+type UpdateUserProfileParams struct {
+	ID    uuid.UUID
+	Name  string
+	Email string
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserProfile, arg.ID, arg.Name, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.ExternalID,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateUserRole = `-- name: UpdateUserRole :one
+UPDATE users SET role = $2 WHERE id = $1 RETURNING id, email, name, password_hash, role, external_id, suspended_at, created_at
+`
+
+type UpdateUserRoleParams struct {
+	ID   uuid.UUID
+	Role UserRole
+}
+
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserRole, arg.ID, arg.Role)
 	var i User
 	err := row.Scan(
 		&i.ID,

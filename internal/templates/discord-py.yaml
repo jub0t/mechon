@@ -1,0 +1,17 @@
+id: discord-py
+name: discord.py
+language: Python 3.12
+description: A Discord bot written with discord.py, or any Python program.
+image: python:3.12-slim-bookworm
+install: |
+  python -m venv .venv
+  if [ -f requirements.txt ]; then .venv/bin/pip install --no-cache-dir --disable-pip-version-check -r requirements.txt; fi
+start: exec .venv/bin/python -u "${MAIN:-main.py}"
+env:
+  - key: DISCORD_TOKEN
+    label: Bot token
+    secret: true
+    required: true
+  - key: MAIN
+    label: Entry file
+    default: main.py

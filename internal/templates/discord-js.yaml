@@ -1,0 +1,18 @@
+id: discord-js
+name: discord.js
+language: Node.js 22
+description: A Discord bot written with discord.js, or any Node.js program.
+image: node:22-bookworm-slim
+install: |
+  if [ -f package-lock.json ]; then npm ci --omit=dev --no-audit --no-fund
+  elif [ -f package.json ]; then npm install --omit=dev --no-audit --no-fund
+  fi
+start: exec node "${MAIN:-index.js}"
+env:
+  - key: DISCORD_TOKEN
+    label: Bot token
+    secret: true
+    required: true
+  - key: MAIN
+    label: Entry file
+    default: index.js

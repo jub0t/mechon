@@ -19,3 +19,11 @@ sql:
             go_type:
               type: time.Time
               pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true

@@ -14,6 +14,8 @@ type Panel struct {
 	DatabaseURL string   // MECHON_DATABASE_URL, required
 	PublicURL   *url.URL // MECHON_PUBLIC_URL, required: where browsers reach the panel
 	TrustProxy  bool     // MECHON_TRUST_PROXY: take the client IP from X-Forwarded-For
+	SecretKey   string   // MECHON_SECRET_KEY, required: encrypts bot secrets at rest
+	DataDir     string   // MECHON_DATA_DIR, default "./data": uploaded artifacts live here
 }
 
 func LoadPanel() (Panel, error) {
@@ -21,10 +23,15 @@ func LoadPanel() (Panel, error) {
 		Listen:      env("MECHON_LISTEN", ":8080"),
 		DatabaseURL: os.Getenv("MECHON_DATABASE_URL"),
 		TrustProxy:  env("MECHON_TRUST_PROXY", "false") == "true",
+		SecretKey:   os.Getenv("MECHON_SECRET_KEY"),
+		DataDir:     env("MECHON_DATA_DIR", "./data"),
 	}
 	var errs []error
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("MECHON_DATABASE_URL is required"))
+	}
+	if c.SecretKey == "" {
+		errs = append(errs, errors.New("MECHON_SECRET_KEY is required (generate one with `mechon keygen`)"))
 	}
 	raw := os.Getenv("MECHON_PUBLIC_URL")
 	if raw == "" {

@@ -12,6 +12,227 @@ import (
 	"github.com/google/uuid"
 )
 
+type BotDesiredState string
+
+const (
+	BotDesiredStateRunning BotDesiredState = "running"
+	BotDesiredStateStopped BotDesiredState = "stopped"
+)
+
+func (e *BotDesiredState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BotDesiredState(s)
+	case string:
+		*e = BotDesiredState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BotDesiredState: %T", src)
+	}
+	return nil
+}
+
+type NullBotDesiredState struct {
+	BotDesiredState BotDesiredState
+	Valid           bool // Valid is true if BotDesiredState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBotDesiredState) Scan(value interface{}) error {
+	if value == nil {
+		ns.BotDesiredState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BotDesiredState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBotDesiredState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BotDesiredState), nil
+}
+
+type BotObservedState string
+
+const (
+	BotObservedStatePending    BotObservedState = "pending"
+	BotObservedStateInstalling BotObservedState = "installing"
+	BotObservedStateRunning    BotObservedState = "running"
+	BotObservedStateStopped    BotObservedState = "stopped"
+	BotObservedStateCrashed    BotObservedState = "crashed"
+	BotObservedStateUnknown    BotObservedState = "unknown"
+)
+
+func (e *BotObservedState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BotObservedState(s)
+	case string:
+		*e = BotObservedState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BotObservedState: %T", src)
+	}
+	return nil
+}
+
+type NullBotObservedState struct {
+	BotObservedState BotObservedState
+	Valid            bool // Valid is true if BotObservedState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBotObservedState) Scan(value interface{}) error {
+	if value == nil {
+		ns.BotObservedState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BotObservedState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBotObservedState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BotObservedState), nil
+}
+
+type DeploySource string
+
+const (
+	DeploySourceUpload   DeploySource = "upload"
+	DeploySourceGit      DeploySource = "git"
+	DeploySourceApi      DeploySource = "api"
+	DeploySourceRollback DeploySource = "rollback"
+)
+
+func (e *DeploySource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeploySource(s)
+	case string:
+		*e = DeploySource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeploySource: %T", src)
+	}
+	return nil
+}
+
+type NullDeploySource struct {
+	DeploySource DeploySource
+	Valid        bool // Valid is true if DeploySource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeploySource) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeploySource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeploySource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeploySource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeploySource), nil
+}
+
+type DeployStatus string
+
+const (
+	DeployStatusQueued     DeployStatus = "queued"
+	DeployStatusFetching   DeployStatus = "fetching"
+	DeployStatusInstalling DeployStatus = "installing"
+	DeployStatusLive       DeployStatus = "live"
+	DeployStatusFailed     DeployStatus = "failed"
+	DeployStatusSuperseded DeployStatus = "superseded"
+)
+
+func (e *DeployStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeployStatus(s)
+	case string:
+		*e = DeployStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeployStatus: %T", src)
+	}
+	return nil
+}
+
+type NullDeployStatus struct {
+	DeployStatus DeployStatus
+	Valid        bool // Valid is true if DeployStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeployStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeployStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeployStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeployStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeployStatus), nil
+}
+
+type SubscriptionStatus string
+
+const (
+	SubscriptionStatusActive     SubscriptionStatus = "active"
+	SubscriptionStatusSuspended  SubscriptionStatus = "suspended"
+	SubscriptionStatusTerminated SubscriptionStatus = "terminated"
+)
+
+func (e *SubscriptionStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SubscriptionStatus(s)
+	case string:
+		*e = SubscriptionStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SubscriptionStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSubscriptionStatus struct {
+	SubscriptionStatus SubscriptionStatus
+	Valid              bool // Valid is true if SubscriptionStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSubscriptionStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SubscriptionStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SubscriptionStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSubscriptionStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SubscriptionStatus), nil
+}
+
 type UserRole string
 
 const (
@@ -54,6 +275,107 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type ApiKey struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Name       string
+	Prefix     string
+	Hash       []byte
+	Scopes     []string
+	LastUsedAt *time.Time
+	ExpiresAt  *time.Time
+	CreatedAt  time.Time
+}
+
+type Bot struct {
+	ID              uuid.UUID
+	UidSeq          int32
+	SubscriptionID  uuid.UUID
+	NodeID          uuid.UUID
+	Name            string
+	Template        string
+	MemoryMb        int32
+	CpuMillicores   int32
+	DiskMb          int32
+	DesiredState    BotDesiredState
+	ObservedState   BotObservedState
+	ObservedError   string
+	ExitCode        *int32
+	CurrentDeployID *uuid.UUID
+	RestartCount    int32
+	StateChangedAt  time.Time
+	CreatedAt       time.Time
+	DeletedAt       *time.Time
+}
+
+type BotEnv struct {
+	BotID    uuid.UUID
+	Key      string
+	ValueEnc []byte
+	Secret   bool
+}
+
+type BotMetric struct {
+	BotID       uuid.UUID
+	Ts          time.Time
+	CpuPct      float32
+	MemoryBytes int64
+	DiskBytes   int64
+	NetRx       int64
+	NetTx       int64
+}
+
+type Deploy struct {
+	ID             uuid.UUID
+	BotID          uuid.UUID
+	Number         int32
+	Source         DeploySource
+	GitUrl         string
+	GitRef         string
+	GitCommit      string
+	RollbackOf     *uuid.UUID
+	ArtifactSha256 string
+	ArtifactBytes  int64
+	Status         DeployStatus
+	Error          string
+	Log            string
+	CreatedBy      *uuid.UUID
+	CreatedAt      time.Time
+	FinishedAt     *time.Time
+}
+
+type Node struct {
+	ID            uuid.UUID
+	Name          string
+	Region        string
+	TokenHash     []byte
+	MemoryMb      int32
+	CpuMillicores int32
+	DiskMb        int32
+	Overcommit    float64
+	Maintenance   bool
+	AgentVersion  string
+	Info          []byte
+	Runsc         bool
+	LastSeenAt    *time.Time
+	CreatedAt     time.Time
+}
+
+type Plan struct {
+	ID            uuid.UUID
+	Slug          string
+	Name          string
+	MaxBots       int32
+	MemoryMb      int32
+	CpuMillicores int32
+	DiskMb        int32
+	PidsMax       int32
+	Hardened      bool
+	Templates     []string
+	ArchivedAt    *time.Time
+	CreatedAt     time.Time
+}
+
 type Session struct {
 	TokenHash  []byte
 	UserID     uuid.UUID
@@ -62,6 +384,15 @@ type Session struct {
 	UserAgent  string
 	CreatedAt  time.Time
 	LastSeenAt time.Time
+}
+
+type Subscription struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	PlanID     uuid.UUID
+	Status     SubscriptionStatus
+	ExternalID *string
+	CreatedAt  time.Time
 }
 
 type User struct {

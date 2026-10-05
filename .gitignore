@@ -7,3 +7,4 @@ web/dist/*
 !web/dist/.gitkeep
 web/*.tsbuildinfo
 web/node_modules/.tmp/
+/data/

@@ -18,6 +18,7 @@ import (
 	"github.com/jub0t/mechon/internal/auth"
 	"github.com/jub0t/mechon/internal/config"
 	"github.com/jub0t/mechon/internal/db"
+	"github.com/jub0t/mechon/internal/secrets"
 )
 
 // Integration tests run against a real Postgres. Point MECHON_TEST_DATABASE_URL at a throwaway
@@ -48,7 +49,11 @@ func testServer(t *testing.T) (*httptest.Server, *db.Queries) {
 	var ts *httptest.Server
 	ts = httptest.NewUnstartedServer(nil)
 	u, _ := url.Parse("http://" + ts.Listener.Addr().String())
-	ts.Config.Handler = New(config.Panel{PublicURL: u}, pool, web).Handler()
+	srv, err := New(config.Panel{PublicURL: u, SecretKey: secrets.NewKey(), DataDir: t.TempDir()}, pool, web)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts.Config.Handler = srv.Handler()
 	ts.Start()
 	t.Cleanup(ts.Close)
 	return ts, db.New(pool)

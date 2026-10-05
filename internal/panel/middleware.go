@@ -69,8 +69,12 @@ func securityHeaders(next http.Handler) http.Handler {
 func (s *Server) checkOrigin(next http.Handler) http.Handler {
 	want := s.cfg.Origin()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet, http.MethodHead, http.MethodOptions:
+		// API-key requests carry an Authorization header, which a browser cannot add cross-site
+		// without a CORS preflight the panel never grants, so they need no origin check.
+		_, hasCookie := r.Header["Cookie"]
+		bearer := r.Header.Get("Authorization") != "" && !hasCookie
+		switch {
+		case bearer, r.Method == http.MethodGet, r.Method == http.MethodHead, r.Method == http.MethodOptions:
 		default:
 			if o := r.Header.Get("Origin"); o != "" && o != want {
 				writeError(w, r, errBadOrigin)
