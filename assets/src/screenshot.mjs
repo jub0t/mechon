@@ -34,6 +34,13 @@ await send('Page.navigate', { url })
 await sleep(1500)
 if (mx) { await sleep(1500); await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: +mx, y: +my }) }
 await sleep(+waitMs)
+if (process.env.CLICK) {
+  // Click elements by visible text, in order: CLICK="package.json|Save"
+  for (const text of process.env.CLICK.split('|')) {
+    await send('Runtime.evaluate', { expression: `[...document.querySelectorAll('[role=treeitem],button')].find(e => e.textContent.trim().startsWith(${JSON.stringify(text)}))?.click()` })
+    await sleep(1200)
+  }
+}
 const shot = await send('Page.captureScreenshot', { format: 'png' })
 writeFileSync(out, Buffer.from(shot.result.data, 'base64'))
 ws.close(); chrome.kill()
