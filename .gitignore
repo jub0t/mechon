@@ -1,29 +1,9 @@
-/target
-**/*.rs.bk
-Cargo.lock
-
-# Config (contains secrets)
-config.toml
-config.*.toml
-!config.example.toml
-
-# Env
+/bin/
 .env
-.env.*
-!.env.example
-
-# sqlx offline mode cache
-.sqlx/
-
-# Bot working directories
-/data/
-
-# IDE
-.vscode/settings.json
-.idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
-Thumbs.db
+
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+web/*.tsbuildinfo
+web/node_modules/.tmp/

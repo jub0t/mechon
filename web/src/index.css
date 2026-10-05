@@ -1,0 +1,234 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/bricolage-grotesque/standard.css";
+
+/* Theme is a `dark` class on <html>, set before paint by /theme.js. Dark is the default. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Tokens ----------
+   Same palette as offerwall-site: near-black and warm white, one violet brand accent, orange as the
+   secondary tone, muted red for danger. No gradients. shadcn's variable names are mapped onto it so
+   every shadcn component inherits the look. Note shadcn's --accent is a quiet hover fill, not the
+   brand colour; the violet is --brand. */
+
+:root {
+  --background: oklch(0.98 0.008 90);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.94 0.01 90);
+  --foreground: oklch(0.17 0.005 285);
+  --muted-foreground: oklch(0.45 0.008 285);
+  --faint-foreground: oklch(0.62 0.006 285);
+  --border: oklch(0.17 0.005 285 / 0.12);
+
+  --brand: oklch(0.55 0.23 300);
+  --brand-foreground: oklch(1 0 0);
+  --brand-soft: oklch(0.55 0.23 300 / 0.1);
+  --brand-text: oklch(0.48 0.22 300);
+
+  --orange: oklch(0.78 0.16 60);
+  --orange-soft: oklch(0.94 0.05 70);
+  --orange-text: oklch(0.52 0.15 55);
+
+  --success: oklch(0.6 0.15 155);
+  --success-soft: oklch(0.6 0.15 155 / 0.12);
+  --danger: oklch(0.56 0.2 25);
+  --danger-soft: oklch(0.94 0.04 25);
+
+  /* shadcn mapping */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--danger);
+  --input: oklch(0.17 0.005 285 / 0.16);
+  --ring: var(--brand);
+  --radius: 0.875rem;
+
+  color-scheme: light;
+}
+
+.dark {
+  --background: oklch(0.13 0.004 285);
+  --surface: oklch(0.17 0.004 285);
+  --surface-2: oklch(0.22 0.004 285);
+  --foreground: oklch(0.97 0.008 90);
+  --muted-foreground: oklch(0.74 0.008 285);
+  --faint-foreground: oklch(0.54 0.008 285);
+  --border: oklch(1 0 0 / 0.1);
+
+  --brand: oklch(0.62 0.22 300);
+  --brand-foreground: oklch(1 0 0);
+  --brand-soft: oklch(0.62 0.22 300 / 0.16);
+  --brand-text: oklch(0.8 0.12 300);
+
+  --orange: oklch(0.8 0.16 60);
+  --orange-soft: oklch(0.8 0.16 60 / 0.16);
+  --orange-text: oklch(0.86 0.12 70);
+
+  --success: oklch(0.74 0.15 155);
+  --success-soft: oklch(0.74 0.15 155 / 0.14);
+  --danger: oklch(0.74 0.17 25);
+  --danger-soft: oklch(0.74 0.17 25 / 0.16);
+
+  --input: oklch(1 0 0 / 0.14);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+  --color-border: var(--border);
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-orange: var(--orange);
+  --color-orange-soft: var(--orange-soft);
+  --color-orange-text: var(--orange-text);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-display: "Bricolage Grotesque Variable", "Geist Variable", ui-sans-serif, sans-serif;
+
+  --animate-pulse-dot: pulse-dot 1.8s ease-in-out infinite;
+}
+
+/* ---------- Base ---------- */
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--brand);
+    color: var(--brand-foreground);
+  }
+
+  /* Tailwind 4 dropped the pointer on buttons. Anything clickable gets it back. */
+  a[href], button, summary, select, label[for], [role="button"], [role="link"], [role="tab"],
+  [role="menuitem"], [role="option"], input[type="checkbox"], input[type="radio"] {
+    cursor: pointer;
+  }
+
+  button:disabled, [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  p { text-wrap: pretty; }
+  h1, h2, h3 { text-wrap: balance; }
+}
+
+/* ---------- Utilities ---------- */
+
+@utility text-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.96;
+  font-variation-settings: "opsz" 96, "wdth" 100;
+}
+
+@utility text-title {
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.022em;
+  line-height: 1.02;
+  font-variation-settings: "opsz" 48, "wdth" 100;
+}
+
+/* Frosted pane: heavy blur and saturation, a faint inner ring, a specular top edge, soft lift. */
+@utility glass {
+  background: color-mix(in oklab, var(--surface) 55%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8) brightness(1.04);
+  backdrop-filter: blur(28px) saturate(1.8) brightness(1.04);
+  box-shadow:
+    inset 0 0 0 1px oklch(0 0 0 / 0.05),
+    inset 0 1px 0 0 oklch(1 0 0 / 0.7),
+    0 12px 32px -16px oklch(0 0 0 / 0.3);
+  &:where(.dark, .dark *) {
+    background: color-mix(in oklab, var(--surface) 45%, transparent);
+    box-shadow:
+      inset 0 0 0 1px oklch(1 0 0 / 0.07),
+      inset 0 1px 0 0 oklch(1 0 0 / 0.1),
+      0 16px 40px -18px oklch(0 0 0 / 0.7);
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
